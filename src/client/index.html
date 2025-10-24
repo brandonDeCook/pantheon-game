@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pantheon</title>    
+    <style>
+        @font-face {
+            font-family: 'standard';
+            src: url('assets/fonts/standard.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'title';
+            src: url('assets/fonts/title.ttf') format('truetype');
+        }
+        
+        html, body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100%;
+            color: rgba(255, 255, 255, 0.87);
+            background-color: #000000;
+            cursor: url('assets/cursors/standard.png'), pointer;
+        }
+
+        #app {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        textarea  {
+            cursor: url('assets/cursors/ibeam.png'), text;
+        }
+
+        canvas { 
+          image-rendering: pixelated; 
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="game-container"></div>
+    </div>
+    <div style="font-family:standard; position:absolute; left:-1000px; visibility:hidden;">.</div>
+    <div style="font-family:title; position:absolute; left:-1000px; visibility:hidden;">.</div>
+    <script type="module" src="./main.js"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "pantheon-standalone",
+  "version": "1.0.0",
+  "description": "Standalone Pantheon PhaserJS game",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "serve": "vite preview"
+  },
+  "dependencies": {
+    "phaser": "^3.60.0"
+  },
+  "devDependencies": {
+    "vite": "^4.0.0"
+  }
+}
