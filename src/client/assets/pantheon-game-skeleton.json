@@ -69,7 +69,7 @@
     "trimmed": false,
     "spriteSourceSize": { "x": 0, "y": 0, "w": 16, "h": 32 },
     "sourceSize": { "w": 16, "h": 32 },
-    "duration": 150
+    "duration": 750
    },
    "9": {
     "frame": { "x": 0, "y": 0, "w": 16, "h": 32 },

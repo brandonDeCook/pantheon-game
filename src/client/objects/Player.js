@@ -7,6 +7,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
+    this.body.setSize(8, 20, false);
+    this.body.setOffset(6, 12);
     this.speed = 40;
     this.cursors = scene.input.keyboard.createCursorKeys();
     this.zkey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
@@ -21,7 +23,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.playerHealth = { current: 5, max: 5, bars: [] };
     for (var index = 0; index < this.playerHealth.max; index++) {
       this.playerHealth.bars.push(
-        scene.add.sprite(68 + index * 5, 24, "healthBar")
+        scene.add.sprite(40 + index * 5, 26, "healthBar")
       );
     }
 
@@ -31,14 +33,12 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     );
 
     const playerHealthText = scene.add
-      .text(245, 200, "PLAYER", {
+      .text(0, 24, "PLAYER", {
         fontFamily: "standard",
         fontSize: "24px",
         color: "#FFFFFF",
       })
-      .setScrollFactor(0)
-      .setScale(1 / zoom)
-      .setDepth(100);
+      .setScale(1 / zoom);
 
     this.arrows = scene.physics.add.group({
       defaultKey: "arrow",

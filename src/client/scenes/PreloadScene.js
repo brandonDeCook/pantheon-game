@@ -9,8 +9,11 @@ export default class PreloadScene extends Phaser.Scene {
   }
 
   preload() {
+    const centerX = this.scale.width * 0.5;
+    const centerY = this.scale.height * 0.5;
+
     this.loadingText = this.add
-      .text(400, 300, "LOADING.", {
+      .text(centerX, centerY, "LOADING.", {
         fontFamily: "standard",
         fontSize: "24px",
         color: "#FFFFFF",

@@ -26,14 +26,14 @@ export default class GameScene extends Phaser.Scene {
     const mapH = map.heightInPixels;
     const zoomX = screenW / mapW;
     const zoomY = screenH / mapH;
-    const zoom = Math.min(zoomX, zoomY);
 
     this.cameras.main
       .setBounds(0, 0, mapW, mapH)
-      .setZoom(zoom)
-      .centerOn(mapW / 2, mapH / 2);
+      .setZoom(4)
+      .centerOn(mapW / 2, mapH / 2)
+      .setRoundPixels(true);
 
-    this.player = new Player(this, 150, 150, zoom);
+    this.player = new Player(this, 150, 150, 4);
 
     this.skeletons = this.physics.add.group({
       classType: Skeleton,

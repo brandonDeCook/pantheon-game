@@ -1,28 +1,27 @@
-import Phaser from 'phaser';
-import TitleScene from './scenes/TitleScene.js';
-import GameScene from './scenes/GameScene.js';
-import PreloadScene from './scenes/PreloadScene.js';
+import Phaser from "phaser";
+import TitleScene from "./scenes/TitleScene.js";
+import GameScene from "./scenes/GameScene.js";
+import PreloadScene from "./scenes/PreloadScene.js";
+
+const BASE_WIDTH = 320;
+const BASE_HEIGHT = 240;
+export const SCALE_4X = 4;
 
 const config = {
   type: Phaser.AUTO,
-  width: 800,
-  height: 600,
-  parent: 'game-container',
+  width: BASE_WIDTH * SCALE_4X,
+  height: BASE_HEIGHT * SCALE_4X,
+  parent: "game-container",
   pixelArt: true,
-  roundPixels: true,      // helps snap to integer pixels
-  render: {
-    antialias: false,     // turn off WebGL smoothing
-  },
+  render: { antialias: false },
   scale: {
+    mode: Phaser.Scale.NONE,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  physics: {
-    default: 'arcade',
-    arcade: { gravity: { y: 200 }, debug: false }
-  },
-  scene: [PreloadScene, TitleScene, GameScene]
+  physics: { default: "arcade", arcade: { gravity: { y: 200 }, debug: false } },
+  scene: [PreloadScene, TitleScene, GameScene],
 };
 
-window.addEventListener('load', () => {
+window.addEventListener("load", () => {
   new Phaser.Game(config);
 });

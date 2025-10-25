@@ -8,10 +8,13 @@ export default class TitleScene extends Phaser.Scene {
   preload() {}
 
   create() {
-    this.add.image(400, 300, "title").setOrigin(0.5).setScale(3);
+    const centerX = this.scale.width * 0.5;
+    const centerY = this.scale.height * 0.5;
+
+    this.add.image(centerX, centerY, "title").setOrigin(0.5).setScale(3);
 
     const pressEnterText = this.add
-      .text(400, 350, "PRESS ENTER", {
+      .text(centerX, centerY + 50, "PRESS ENTER", {
         fontFamily: "standard",
         fontSize: "24px",
         color: "#FFFFFF",

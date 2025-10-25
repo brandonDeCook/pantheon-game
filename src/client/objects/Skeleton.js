@@ -6,6 +6,8 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
     this.setCollideWorldBounds(true);
+    this.body.setSize(10, 22, false);
+    this.body.setOffset(4, 10);
     
     this.state = "WALK";
     this.health = 4;
@@ -14,11 +16,16 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
     this.facingRight = true;
     
     this.throwAttackTimer = null;
+    this.punchAttackTimer = null;
     this.throwAttackResetTimer = null;
     this.hitTimer = null;
     this.flashTimer = null;
     this.idleTimer = null;
     this.readyToThrow = true;
+    this.punchGlideStarted = false;
+    this.punchGlideTween = null;
+    this.maxConsecutiveThrows = 2;
+    this.remainingThrows = this.maxConsecutiveThrows;
     
     this.resetAttackRanges();
     this.currentAttackAtX = 0;
@@ -46,6 +53,9 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
         break;
       case "THROW_ATTACK":
         this.updateThrowAttackState();
+        break;
+      case "PUNCH_ATTACK":
+        this.updatePunchAttackState();
         break;
       case "WALK":
         this.updateWalkState();
@@ -78,12 +88,11 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
   updateThrowAttackState() {
     this.body.setVelocityX(0);
 
-    if(this.readyToThrow){
+    if (this.readyToThrow) {
       this.anims.play("skeleton-throw-attack", true);
-    }
-    else{
+    } else {
       this.anims.play("skeleton-idle", true);
-      
+
       if (!this.idleTimer) {
         this.idleTimer = this.scene.time.addEvent({
           delay: this.throwSpeed,
@@ -92,9 +101,10 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
         });
       }
     }
-    
-    const playerMoved = Math.abs(this.scene.player.x - this.currentAttackAtX) > 10;
-    if (playerMoved && !this.throwAttackResetTimer) {
+
+    const playerMoved =
+      Math.abs(this.scene.player.x - this.currentAttackAtX) > 10;
+    if (playerMoved && !this.throwAttackResetTimer || !this.remainingThrows) {
       this.throwAttackResetTimer = this.scene.time.addEvent({
         delay: 2000,
         callback: this.throwAttackReset,
@@ -103,14 +113,23 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
+  updatePunchAttackState() {
+    this.body.setVelocityX(0);
+    this.anims.play("skeleton-punch-attack", true);
+  }
+
   updateWalkState() {
     this.anims.play("skeleton-walk", true);
     this.determineDirection();
      
-    const inThrowAttackRange = Math.abs(this.currentXDistanceFromPlayer) < this.throwAttackRangeX;
+    const inThrowAttackRange =
+      Math.abs(this.currentXDistanceFromPlayer) < this.throwAttackRangeX;
     const inPunchAttackRange = Math.abs(this.currentXDistanceFromPlayer) < this.punchAttackRangeX;
-    if (inThrowAttackRange && !this.throwAttackTimer) {
+    if (inThrowAttackRange && !this.throwAttackTimer && this.remainingThrows > 0) {
       this.startThrowAttackTimer();
+    }
+    if (inPunchAttackRange && !this.punchAttackTimer) {
+      this.startPunchAttackTimer();
     }
   }
 
@@ -122,12 +141,22 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
     });
   }
 
+  startPunchAttackTimer() {
+    this.punchAttackTimer = this.scene.time.addEvent({
+      delay: Phaser.Math.Between(200, 600),
+      callback: this.punchAttack,
+      callbackScope: this,
+    });
+  }
+
   hit() {
     if (this.state === "HIT") return;
     
     this.state = "HIT";
     this.scene.sound.play("hit");
     this.health--;
+    this.clearTimer('punchAttackTimer');
+    this.cancelPunchGlide();
   }
 
   determineDirection() {
@@ -144,13 +173,23 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
   throwAttack() {
     this.state = "THROW_ATTACK";
     this.clearTimer('throwAttackTimer');
-    this.currentAttackAtX = this.scene.player.x;
+    this.currentAttackAtX = this.scene.player.x;    
+  }
+  
+  punchAttack() {
+    this.state = "PUNCH_ATTACK";
+    this.clearTimer('punchAttackTimer');
+    this.cancelPunchGlide();
+    this.body.setVelocityX(0);
+    this.punchGlideStarted = false;
   }
 
   throwAttackReset() {
     this.clearTimer('throwAttackTimer');
     this.clearTimer('throwAttackResetTimer');
     this.clearTimer('idleTimer');
+    this.clearTimer('punchAttackTimer');
+    this.cancelPunchGlide();
     this.resetAttackRanges();
     this.state = "WALK";
     this.readyToThrow = true;
@@ -179,6 +218,8 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
   die() {
     this.scene.explosions.getFirstDead(true, this.x - 2, this.y + 3);
     this.clearTimer('throwAttackTimer');
+    this.clearTimer('punchAttackTimer');
+    this.cancelPunchGlide();
     this.destroy();
   }
 
@@ -190,14 +231,36 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
   }
 
   resetAttackRanges() {
-    this.throwAttackRangeX = Phaser.Math.Between(80, 120);
-    this.punchAttackRangeX = Phaser.Math.Between(0, 50);
+    this.throwAttackRangeX = Phaser.Math.Between(100, 150);
+    this.punchAttackRangeX = Phaser.Math.Between(0, 80);
   }
 
   onAnimUpdate(animation, frame) {
     if (animation.key === "skeleton-throw-attack" && frame.index === 2) {
       const bone = this.scene.bones.getFirstDead(true, this.x, this.y - 5);
       bone.activate(this.currentXDistanceFromPlayer);
+      this.remainingThrows = Math.max(0, this.remainingThrows - 1);
+    }
+    if (
+      animation.key === "skeleton-punch-attack" &&
+      frame.isLast &&
+      this.state === "PUNCH_ATTACK" &&
+      !this.punchGlideStarted
+    ) {
+      this.punchGlideStarted = true;
+      const direction = this.facingRight ? 1 : -1;
+      const glideDistance = 60 * direction;
+      this.cancelPunchGlide();
+      this.punchGlideTween = this.scene.tweens.add({
+        targets: this,
+        x: this.x + glideDistance,
+        duration: 750,
+        ease: "Sine.easeOut",
+        onComplete: () => {
+          this.punchGlideTween = null;
+          this.endPunchAttack();
+        },
+      });
     }
   }
 
@@ -206,10 +269,28 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
       this.readyToThrow = false;
     }
   }
+  
+  endPunchAttack() {
+    this.cancelPunchGlide();
+    if (this.state === "PUNCH_ATTACK") {
+      this.state = "WALK";
+    }
+  }
+
+  cancelPunchGlide() {
+    if (this.punchGlideTween) {
+      this.punchGlideTween.stop();
+      this.punchGlideTween.remove();
+      this.punchGlideTween = null;
+    }
+    this.punchGlideStarted = false;
+  }
 
   destroy() {
     this.clearTimer('throwAttackTimer');
     this.clearTimer('throwAttackResetTimer');
+    this.clearTimer('punchAttackTimer');
+    this.cancelPunchGlide();
     this.clearTimer('hitTimer');
     this.clearTimer('flashTimer');
     this.clearTimer('idleTimer');
