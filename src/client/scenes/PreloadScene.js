@@ -60,6 +60,12 @@ export default class PreloadScene extends Phaser.Scene {
       "/assets/pantheon-bone.json"
     );
     this.load.aseprite(
+      "badBat",
+      "/assets/pantheon-bad-bat.png",
+      "/assets/pantheon-bad-bat.json"
+    );
+    this.load.json("enemyWaves", "/assets/enemy-waves.json");
+    this.load.aseprite(
       "healthBar",
       "/assets/pantheon-game-health-bar.png",
       "/assets/pantheon-game-health-bar.json"
@@ -84,6 +90,7 @@ export default class PreloadScene extends Phaser.Scene {
     this.anims.createFromAseprite("skeleton");
     this.anims.createFromAseprite("bone");
     this.anims.createFromAseprite("smallExplosion");
+    this.anims.createFromAseprite("badBat");
     this.anims.createFromAseprite("healthBar");
 
     this.checkReadyToStart();

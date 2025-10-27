@@ -232,7 +232,7 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
 
   resetAttackRanges() {
     this.throwAttackRangeX = Phaser.Math.Between(100, 150);
-    this.punchAttackRangeX = Phaser.Math.Between(0, 80);
+    this.punchAttackRangeX = Phaser.Math.Between(15, 80);
   }
 
   onAnimUpdate(animation, frame) {
