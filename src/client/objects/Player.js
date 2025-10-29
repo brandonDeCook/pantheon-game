@@ -12,9 +12,18 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.speed = 40;
     this.cursors = scene.input.keyboard.createCursorKeys();
     this.zkey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
+    this.xkey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
     this.facingRight = true;
     this.lastFired = 0;
     this.fireRate = 500;
+    this.state = "NONE";
+    this.rollDistance = 30;
+    this.rollDuration = 400;
+    this.rollSpeed = this.rollDistance / (this.rollDuration / 1000);
+    this.rollDirection = 0;
+    this.rollTimer = null;
+    this.rollCooldown = 900;
+    this.lastRollTime = -this.rollCooldown;
     this.play("player-idle");
     this.setCollideWorldBounds(true);
     this.arrowShootSound = scene.sound.add("arrowShoot");
@@ -52,6 +61,30 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
   update(time, delta) {
     const { left, right, up, down } = this.cursors;
+    if (this.state === "ROLL") {
+      this.body.setVelocityX(this.rollDirection * this.rollSpeed);
+      return;
+    }
+
+    const rollDirection =
+      right.isDown && !left.isDown
+        ? 1
+        : left.isDown && !right.isDown
+        ? -1
+        : 0;
+    const rollTriggered =
+      this.state === "NONE" &&
+      rollDirection !== 0 &&
+      !down.isDown &&
+      this.xkey.isDown &&
+      time - this.lastRollTime >= this.rollCooldown &&
+      (Phaser.Input.Keyboard.JustDown(this.xkey) ||
+        Phaser.Input.Keyboard.JustDown(right) ||
+        Phaser.Input.Keyboard.JustDown(left));
+    if (rollTriggered) {
+      this.startRoll(rollDirection, time);
+      return;
+    }
 
     if (this.zkey.isDown && !down.isDown) {
       this.body.setVelocityX(0);
@@ -112,8 +145,45 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
+  startRoll(direction, triggerTime) {
+    this.state = "ROLL";
+    this.rollDirection = direction;
+    this.lastRollTime = triggerTime ?? this.scene.time.now;
+    this.facingRight = direction > 0;
+    this.flipX = direction < 0;
+    this.body.setVelocityX(this.rollDirection * this.rollSpeed);
+    this.rollTimer?.remove(false);
+    this.rollTimer = this.scene.time.addEvent({
+      delay: this.rollDuration,
+      callback: this.finishRollFromTimer,
+      callbackScope: this,
+    });
+    this.play("player-roll", true);
+  }
+
+  finishRollFromTimer() {
+    this.rollTimer = null;
+    this.endRoll();
+  }
+
+  endRoll() {
+    if (this.state !== "ROLL") {
+      return;
+    }
+
+    if (this.rollTimer) {
+      this.rollTimer.remove(false);
+      this.rollTimer = null;
+    }
+
+    this.state = "NONE";
+    this.rollDirection = 0;
+    this.body.setVelocityX(0);
+    this.play("player-idle", true);
+  }
+
   hit() {
-    if (this.playerHealth.current > 0 && this.state != "HIT") {
+    if (this.playerHealth.current > 0 && this.state !== "HIT" && this.state !== "ROLL") {
       this.state = "HIT";
       this.scene.sound.play("playerHit");
       this.playerHealth.current -= 1;
@@ -140,8 +210,10 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
   endHit() {
     this.state = "NONE";
-    this.flashTimer.paused = true;
-    this.flashTimer = undefined;
+    if (this.flashTimer) {
+      this.flashTimer.paused = true;
+      this.flashTimer = undefined;
+    }
     this.hitTimer = undefined;
     this.clearTint();
   }
@@ -208,6 +280,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         arrow.body.enable = true;
         this.arrowShootSound?.play();
       }
+    } else if (key === "player-roll") {
+      this.endRoll();
     }
   }
 }

@@ -50,6 +50,11 @@ export default class PreloadScene extends Phaser.Scene {
       "/assets/gamejam50-pantheon-player.json"
     );
     this.load.aseprite(
+      "playerRoll",
+      "/assets/pantheon-player-roll.png",
+      "/assets/pantheon-player-roll.json"
+    );
+    this.load.aseprite(
       "skeleton",
       "/assets/pantheon-game-skeleton.png",
       "/assets/pantheon-game-skeleton.json"
@@ -86,6 +91,7 @@ export default class PreloadScene extends Phaser.Scene {
 
   create() {
     this.anims.createFromAseprite("player");
+    this.anims.createFromAseprite("playerRoll");
     this.anims.createFromAseprite("explosion");
     this.anims.createFromAseprite("skeleton");
     this.anims.createFromAseprite("bone");
