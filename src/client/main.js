@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import TitleScene from "./scenes/TitleScene.js";
 import GameScene from "./scenes/GameScene.js";
 import PreloadScene from "./scenes/PreloadScene.js";
+import "./styles.css";
 
 const BASE_WIDTH = 320;
 const BASE_HEIGHT = 240;
