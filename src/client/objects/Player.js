@@ -61,6 +61,13 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
   update(time, delta) {
     const { left, right, up, down } = this.cursors;
+    if (this.state === "DEAD") {
+      if (this.body) {
+        this.body.setVelocity(0, 0);
+      }
+      return;
+    }
+
     if (this.state === "ROLL") {
       this.body.setVelocityX(this.rollDirection * this.rollSpeed);
       return;
@@ -183,28 +190,41 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   hit() {
-    if (this.playerHealth.current > 0 && this.state !== "HIT" && this.state !== "ROLL") {
-      this.state = "HIT";
-      this.scene.sound.play("playerHit");
-      this.playerHealth.current -= 1;
+    if (this.state === "DEAD" || this.state === "ROLL" || this.state === "HIT") {
+      return;
+    }
 
-      for (
-        var index = this.playerHealth.bars.length - 1;
-        index > this.playerHealth.current - 1;
-        index--
-      ) {
-        var bar = this.playerHealth.bars[index];
-        bar.setFrame("1");
-      }
+    if (this.playerHealth.current <= 0) {
+      this.enterDeathState();
+      return;
+    }
 
-      if (!this.hitTimer) {
-        this.hitTimer = this.scene.time.addEvent({
-          delay: 1500,
-          callback: this.endHit,
-          callbackScope: this,
-          repeat: 0,
-        });
-      }
+    this.scene.sound.play("playerHit");
+    this.playerHealth.current = Math.max(0, this.playerHealth.current - 1);
+
+    for (
+      var index = this.playerHealth.bars.length - 1;
+      index > this.playerHealth.current - 1;
+      index--
+    ) {
+      var bar = this.playerHealth.bars[index];
+      bar.setFrame("1");
+    }
+
+    if (this.playerHealth.current <= 0) {
+      this.enterDeathState();
+      return;
+    }
+
+    this.state = "HIT";
+
+    if (!this.hitTimer) {
+      this.hitTimer = this.scene.time.addEvent({
+        delay: 1500,
+        callback: this.endHit,
+        callbackScope: this,
+        repeat: 0,
+      });
     }
   }
 
@@ -216,6 +236,33 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     }
     this.hitTimer = undefined;
     this.clearTint();
+  }
+
+  enterDeathState() {
+    if (this.state === "DEAD") {
+      return;
+    }
+
+    this.state = "DEAD";
+    this.playerHealth.current = 0;
+    this.rollTimer?.remove(false);
+    this.rollTimer = null;
+    this.hitTimer?.remove(false);
+    this.hitTimer = undefined;
+    if (this.flashTimer) {
+      this.flashTimer.remove(false);
+      this.flashTimer = undefined;
+    }
+    this.clearTint();
+
+    if (this.body) {
+      this.body.setVelocity(0, 0);
+    }
+
+    this.playerHealth.bars.forEach((bar) => bar.setFrame("1"));
+
+    this.play("player-lay-down", true);
+    this.scene.events.emit("player-dead");
   }
 
   flash() {
@@ -282,6 +329,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       }
     } else if (key === "player-roll") {
       this.endRoll();
+    } else if (key === "player-lay-down" && this.state === "DEAD") {
+      this.play("player-lay-down-idle", true);
     }
   }
 }

@@ -137,6 +137,7 @@ export default class Bat extends Phaser.Physics.Arcade.Sprite {
         () => {
           this.attackDelayTimer = null;
           if (this.state === "ATTACK" && this.body) {
+            this.scene.sound.play("badBatDive");
             this.anims.play("bat-dive", true);
             this.body.setVelocityY(this.attackDiveSpeed);
           }

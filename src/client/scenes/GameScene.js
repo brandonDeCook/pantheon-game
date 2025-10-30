@@ -31,6 +31,9 @@ export default class GameScene extends Phaser.Scene {
       .setRoundPixels(true);
 
     this.player = new Player(this, 150, 150, 4);
+    this.gameOverText = null;
+    this.gameOverFlashTimer = null;
+    this.events.on("player-dead", this.onPlayerDead, this);
 
     this.skeletons = this.physics.add.group({
       classType: Skeleton,
@@ -133,6 +136,7 @@ export default class GameScene extends Phaser.Scene {
     this.scheduleEnemyWaves();
 
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.cleanupWaveEvents, this);
+    this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.cleanupGameOverUI, this);
   }
 
   update(time, delta) {
@@ -177,6 +181,35 @@ export default class GameScene extends Phaser.Scene {
     arrow.setVisible(false);
     arrow.body.enable = false;
     bat.takeDamage(1);
+  }
+
+  onPlayerDead() {
+    if (this.gameOverText) {
+      return;
+    }
+
+    const centerX = this.scale.width * 0.5;
+    const centerY = this.scale.height * 0.5;
+    this.gameOverText = this.add
+      .text(centerX, centerY, "GAME OVER", {
+        fontFamily: "standard",
+        fontSize: "32px",
+        color: "#FFFFFF",
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setScale(1 / this.zoom)
+      .setDepth(10000);
+
+    this.gameOverFlashTimer = this.time.addEvent({
+      delay: 400,
+      loop: true,
+      callback: () => {
+        if (this.gameOverText) {
+          this.gameOverText.visible = !this.gameOverText.visible;
+        }
+      },
+    });
   }
 
   scheduleEnemyWaves() {
@@ -351,6 +384,20 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.queueWaveStart(nextIndex);
+  }
+
+  cleanupGameOverUI() {
+    if (this.gameOverFlashTimer) {
+      this.gameOverFlashTimer.remove(false);
+      this.gameOverFlashTimer = null;
+    }
+
+    if (this.gameOverText) {
+      this.gameOverText.destroy();
+      this.gameOverText = null;
+    }
+
+    this.events.off("player-dead", this.onPlayerDead, this);
   }
 
   cleanupWaveEvents() {

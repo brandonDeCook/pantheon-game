@@ -55,6 +55,11 @@ export default class PreloadScene extends Phaser.Scene {
       "/assets/pantheon-player-roll.json"
     );
     this.load.aseprite(
+      "playerLayDown",
+      "/assets/pantheon-player-lay-down.png",
+      "/assets/pantheon-player-lay-down.json"
+    );
+    this.load.aseprite(
       "skeleton",
       "/assets/pantheon-game-skeleton.png",
       "/assets/pantheon-game-skeleton.json"
@@ -87,11 +92,13 @@ export default class PreloadScene extends Phaser.Scene {
     this.load.audio("playerHit", "/assets/pantheon-player-hit.wav");
     this.load.audio("hit", "/assets/pantheon-hit.wav");
     this.load.audio("playerHit2", "/assets/player-hit-damage.wav");
+    this.load.audio("badBatDive", "/assets/pantheon-bad-bat-dive.wav");
   }
 
   create() {
     this.anims.createFromAseprite("player");
     this.anims.createFromAseprite("playerRoll");
+    this.anims.createFromAseprite("playerLayDown");
     this.anims.createFromAseprite("explosion");
     this.anims.createFromAseprite("skeleton");
     this.anims.createFromAseprite("bone");
