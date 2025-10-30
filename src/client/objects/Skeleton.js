@@ -10,7 +10,7 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
     this.body.setOffset(4, 10);
     
     this.state = "WALK";
-    this.health = 4;
+    this.health = 8;
     this.speed = 50;
     this.throwSpeed = 3000;
     this.facingRight = true;
@@ -150,13 +150,23 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
   }
 
   hit() {
-    if (this.state === "HIT") return;
-    
-    this.state = "HIT";
+    if (!this.active) {
+      return;
+    }
+
     this.scene.sound.play("hit");
-    this.health--;
-    this.clearTimer('punchAttackTimer');
+    this.health = Math.max(0, this.health - 1);
+
+    if (this.health <= 0) {
+      this.die();
+      return;
+    }
+
+    this.state = "HIT";
+    this.clearTimer("punchAttackTimer");
     this.cancelPunchGlide();
+    this.clearTimer("hitTimer");
+    this.clearTimer("flashTimer");
   }
 
   determineDirection() {

@@ -5,6 +5,7 @@ import Explosion from "../objects/Explosion.js";
 import Bone from "../objects/Bone.js";
 import Player from "../objects/Player.js";
 import Bat from "../objects/Bat.js";
+import Slime from "../objects/Slime.js";
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -64,8 +65,17 @@ export default class GameScene extends Phaser.Scene {
 
     this.bats = this.physics.add.group({
       classType: Bat,
-      frameQuantity: 5,
+      frameQuantity: 10,
       allowGravity: false,
+      runChildUpdate: true,
+      active: true,
+      visible: true,
+    });
+
+    this.slimes = this.physics.add.group({
+      classType: Slime,
+      frameQuantity: 10,
+      allowGravity: true,
       runChildUpdate: true,
       active: true,
       visible: true,
@@ -73,7 +83,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.explosions = this.physics.add.group({
       classType: Explosion,
-      frameQuantity: 5,
+      frameQuantity: 10,
       allowGravity: false,
       runChildUpdate: true,
       active: false,
@@ -83,6 +93,7 @@ export default class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.player, groundLayer);
     this.physics.add.collider(this.skeletons, groundLayer);
     this.physics.add.collider(this.bats, groundLayer, this.onBatCollideGround, null, this);
+    this.physics.add.collider(this.slimes, groundLayer);
 
     this.physics.add.overlap(
       this.player,
@@ -109,6 +120,14 @@ export default class GameScene extends Phaser.Scene {
     );
 
     this.physics.add.overlap(
+      this.player.arrows,
+      this.slimes,
+      this.onArrowOverlapSlime,
+      null,
+      this
+    );
+
+    this.physics.add.overlap(
       this.bones,
       this.player,
       this.onPlayerOverlapBones,
@@ -120,6 +139,14 @@ export default class GameScene extends Phaser.Scene {
       this.player,
       this.bats,
       this.onPlayerOverlapBat,
+      null,
+      this
+    );
+
+    this.physics.add.overlap(
+      this.player,
+      this.slimes,
+      this.onPlayerOverlapSlime,
       null,
       this
     );
@@ -181,6 +208,19 @@ export default class GameScene extends Phaser.Scene {
     arrow.setVisible(false);
     arrow.body.enable = false;
     bat.takeDamage(1);
+  }
+
+  onArrowOverlapSlime(arrow, slime) {
+    if (!slime.active) return;
+    arrow.setActive(false);
+    arrow.setVisible(false);
+    arrow.body.enable = false;
+    slime.hit();
+  }
+
+  onPlayerOverlapSlime(player, slime) {
+    if (!player.active || !slime.active) return;
+    player.hit();
   }
 
   onPlayerDead() {
@@ -319,6 +359,22 @@ export default class GameScene extends Phaser.Scene {
           bat.clearTint();
           bat.enterFlyState();
           this.registerWaveEnemy(bat);
+        }
+        else {
+          this.handleFailedSpawn();
+        }
+        break;
+      }
+      case "slime": {
+        const slime = this.slimes.getFirstDead(true, x, spawnY);
+        if (slime) {
+          slime.state = "WALK";
+          slime.health = slime.maxHealth ?? 3;
+          slime.body.setVelocity(0, 0);
+          slime.clearHitTimers?.();
+          slime.clearTint();
+          slime.play("slime-walk", true);
+          this.registerWaveEnemy(slime);
         }
         else {
           this.handleFailedSpawn();

@@ -27,6 +27,7 @@ export default class Bat extends Phaser.Physics.Arcade.Sprite {
     this.flashTimer = null;
     this.attackDelayTimer = null;
     this.attackShakeTween = null;
+    this.attackHasLaunched = false;
 
     this.enterFlyState();
   }
@@ -57,6 +58,7 @@ export default class Bat extends Phaser.Physics.Arcade.Sprite {
     this.attackTargetY = null;
     this.body.setVelocityY(0);
     this.anims.play("bat-fly", true);
+    this.attackHasLaunched = false;
   }
 
   enterAttackState() {
@@ -67,6 +69,7 @@ export default class Bat extends Phaser.Physics.Arcade.Sprite {
     this.state = "ATTACK";
     this.anims.play("bat-dive", true);
     this.attackTargetY = null;
+    this.attackHasLaunched = false;
   }
 
   triggerAttack() {
@@ -130,13 +133,14 @@ export default class Bat extends Phaser.Physics.Arcade.Sprite {
 
   handleAttackState() {
     this.body.setVelocityX(0);
-    if (!this.attackDelayTimer) {
+    if (!this.attackDelayTimer && !this.attackHasLaunched) {
       this.startAttackShake();
       this.attackDelayTimer = this.scene.time.delayedCall(
         500,
         () => {
           this.attackDelayTimer = null;
-          if (this.state === "ATTACK" && this.body) {
+          if (this.state === "ATTACK" && this.body && !this.attackHasLaunched) {
+            this.attackHasLaunched = true;
             this.scene.sound.play("badBatDive");
             this.anims.play("bat-dive", true);
             this.body.setVelocityY(this.attackDiveSpeed);
@@ -221,5 +225,6 @@ export default class Bat extends Phaser.Physics.Arcade.Sprite {
       this.attackShakeTween.stop();
       this.attackShakeTween = null;
     }
+    this.attackHasLaunched = false;
   }
 }

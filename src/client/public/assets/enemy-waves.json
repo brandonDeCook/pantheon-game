@@ -6,7 +6,9 @@
       "startDelay": 0,
       "spawns": [
         { "type": "skeleton", "side": "left", "count": 2, "interval": 3000, "startOffset": 0, "y": 150 },
+        { "type": "slime", "side": "left", "count": 2, "interval": 5000, "startOffset": 0, "y": 150 },
         { "type": "skeleton", "side": "right", "count": 1, "interval": 3500, "startOffset": 6000, "y": 150 },
+        { "type": "slime", "side": "right", "count": 2, "interval": 5500, "startOffset": 6000, "y": 150 },
         { "type": "bat", "side": "right", "count": 1, "interval": 3500, "startOffset": 10000, "y": 80 }
       ]
     },
