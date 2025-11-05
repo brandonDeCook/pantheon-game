@@ -1,5 +1,10 @@
 import Phaser from "phaser";
 
+const STATE_WALK = "WALK";
+const STATE_HIT = "HIT";
+const STATE_JUMP = "JUMP";
+const STATE_LAND = "LAND";
+
 export default class Slime extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y) {
     super(scene, x, y, "slime");
@@ -11,14 +16,32 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
     this.setDepth(15);
 
     this.player = scene.player;
-    this.speed = 15;
-    this.state = "WALK";
+    this.speed = 20;
+    this.state = STATE_WALK;
     this.maxHealth = 4;
     this.health = this.maxHealth;
     this.flashTimer = null;
     this.hitTimer = null;
+    this.facingRight = true;
+
+    this.jumpRangeToPlayer = Phaser.Math.Between(20, 30);
+    this.jumpSpeedY = -100;
+    this.jumpHorizontalVelocity = Phaser.Math.Between(35, 45);
+    this.jumpCooldown = 1000;
+    this.nextJumpTime = 0;
+    this.jumpDirection = 0;
+
+    this.on(
+      Phaser.Animations.Events.ANIMATION_COMPLETE,
+      this.onAnimComplete,
+      this
+    );
 
     this.play("slime-walk");
+  }
+
+  preUpdate(time, delta) {
+    super.preUpdate(time, delta);
   }
 
   update() {
@@ -31,10 +54,19 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    if (this.state === "HIT") {
-      this.handleHitState();
-    } else {
-      this.handleWalkState();
+    switch (this.state) {
+      case STATE_HIT:
+        this.handleHitState();
+        break;
+      case STATE_JUMP:
+        this.handleJumpState();
+        break;
+      case STATE_LAND:
+        this.handleLandState();
+        break;
+      default:
+        this.handleWalkState();
+        break;
     }
   }
 
@@ -47,8 +79,23 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
 
     const deltaX = this.player.x - this.x;
     const direction = Math.sign(deltaX);
+    const distance = Math.abs(deltaX);
+
+    if (
+      this.isOnGround() &&
+      direction !== 0 &&
+      distance <= this.jumpRangeToPlayer &&
+      this.scene.time.now >= this.nextJumpTime
+    ) {
+      this.startJump(direction);
+      return;
+    }
+
     this.body.setVelocityX(direction * this.speed);
     this.flipX = direction < 0;
+    if (direction !== 0) {
+      this.facingRight = direction > 0;
+    }
     this.anims.play("slime-walk", true);
   }
 
@@ -74,14 +121,31 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
+  handleJumpState() {
+    this.anims.play("slime-jump", true);
+
+    if (this.isOnGround() && this.body.velocity.y >= 0) {
+      this.startLanding();
+    }
+  }
+
+  handleLandState() {
+    this.body.setVelocityX(0);
+    this.anims.play("slime-land", true);
+  }
+
   hit() {
     if (!this.active) {
       return;
     }
 
     this.health = Math.max(0, this.health - 1);
-    this.state = "HIT";
+    this.state = STATE_HIT;
     this.scene.sound.play("hit");
+    this.jumpDirection = 0;
+    if (this.body) {
+      this.body.setVelocityX(0);
+    }
 
     if (this.health <= 0) {
       this.die();
@@ -92,10 +156,32 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
     this.handleHitState();
   }
 
+  startJump(direction) {
+    this.state = STATE_JUMP;
+    this.jumpDirection = direction;
+    this.nextJumpTime = this.scene.time.now + this.jumpCooldown;
+    this.body.setVelocityY(this.jumpSpeedY);
+    this.body.setVelocityX(direction * this.jumpHorizontalVelocity);
+    this.facingRight = direction > 0;
+    this.flipX = direction < 0;
+    this.anims.play("slime-jump", true);
+  }
+
+  startLanding() {
+    if (this.state === STATE_LAND) {
+      return;
+    }
+
+    this.state = STATE_LAND;
+    this.jumpDirection = 0;
+    this.body.setVelocityX(0);
+    this.anims.play("slime-land", true);
+  }
+
   endHitState() {
     this.clearHitTimers();
     if (this.health > 0) {
-      this.state = "WALK";
+      this.state = STATE_WALK;
       this.clearTint();
     }
   }
@@ -128,5 +214,17 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
     this.clearTint();
     this.scene.smallExplosions?.getFirstDead(true, this.x, this.y);
     this.destroy();
+  }
+
+  onAnimComplete(animation) {
+    if (animation.key === "slime-land" && this.state === STATE_LAND) {
+      this.state = STATE_WALK;
+      this.clearTint();
+      this.anims.play("slime-walk", true);
+    }
+  }
+
+  isOnGround() {
+    return !!this.body?.blocked?.down;
   }
 }

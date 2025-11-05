@@ -12,7 +12,7 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
     this.state = "WALK";
     this.health = 8;
     this.speed = 50;
-    this.throwSpeed = 3000;
+    this.throwSpeed = 2500;
     this.facingRight = true;
     
     this.throwAttackTimer = null;

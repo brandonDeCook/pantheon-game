@@ -95,7 +95,7 @@ export default class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.bats, groundLayer, this.onBatCollideGround, null, this);
     this.physics.add.collider(this.slimes, groundLayer);
 
-    this.physics.add.overlap(
+    this.physics.add.collider(
       this.player,
       this.skeletons,
       this.onPlayerOverlapSkeleton,
@@ -103,7 +103,7 @@ export default class GameScene extends Phaser.Scene {
       this
     );
 
-    this.physics.add.overlap(
+    this.physics.add.collider(
       this.player.arrows,
       this.skeletons,
       this.onArrowOverlapSkeleton,
@@ -111,7 +111,7 @@ export default class GameScene extends Phaser.Scene {
       this
     );
 
-    this.physics.add.overlap(
+    this.physics.add.collider(
       this.player.arrows,
       this.bats,
       this.onArrowOverlapBat,
@@ -119,7 +119,7 @@ export default class GameScene extends Phaser.Scene {
       this
     );
 
-    this.physics.add.overlap(
+    this.physics.add.collider(
       this.player.arrows,
       this.slimes,
       this.onArrowOverlapSlime,
@@ -127,7 +127,7 @@ export default class GameScene extends Phaser.Scene {
       this
     );
 
-    this.physics.add.overlap(
+    this.physics.add.collider(
       this.bones,
       this.player,
       this.onPlayerOverlapBones,
@@ -135,7 +135,7 @@ export default class GameScene extends Phaser.Scene {
       this
     );
 
-    this.physics.add.overlap(
+    this.physics.add.collider(
       this.player,
       this.bats,
       this.onPlayerOverlapBat,
@@ -143,7 +143,7 @@ export default class GameScene extends Phaser.Scene {
       this
     );
 
-    this.physics.add.overlap(
+    this.physics.add.collider(
       this.player,
       this.slimes,
       this.onPlayerOverlapSlime,
@@ -200,6 +200,7 @@ export default class GameScene extends Phaser.Scene {
   onPlayerOverlapBat(player, bat) {
     if (!player.active || !bat.active) return;
     player.hit();
+    bat.die();
   }
 
   onArrowOverlapBat(arrow, bat) {
@@ -373,6 +374,9 @@ export default class GameScene extends Phaser.Scene {
           slime.body.setVelocity(0, 0);
           slime.clearHitTimers?.();
           slime.clearTint();
+          slime.jumpDirection = 0;
+          slime.nextJumpTime = this.time.now;
+          slime.facingRight = true;
           slime.play("slime-walk", true);
           this.registerWaveEnemy(slime);
         }

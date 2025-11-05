@@ -16,49 +16,30 @@ export default class Bat extends Phaser.Physics.Arcade.Sprite {
     this.hoverY = y;
     this.flySpeed = 25;
     this.verticalDriftSpeed = 30;
-    this.attackDiveSpeed = 120;
+    this.attackDiveSpeed = 160;
     this.attackThreshold = 4;
-    this.attackTargetY = null;
     this.flipX = true;
-    this.attackRecoveryY = this.hoverY;
     this.health = 3;
     this.invulnerable = false;
-    this.hitTimer = null;
     this.flashTimer = null;
-    this.attackDelayTimer = null;
-    this.attackShakeTween = null;
-    this.attackHasLaunched = false;
+    this.flashCleanupTimer = null;
+    this.diving = false;
 
     this.enterFlyState();
   }
 
-  startAttackShake() {
-    if (this.attackShakeTween) {
-      this.attackShakeTween.stop();
-    } else {
-      const amplitude = 2;
-      this.attackShakeTween = this.scene.tweens.add({
-        targets: this,
-        x: {
-          from: this.x - amplitude,
-          to: this.x + amplitude,
-        },
-        yoyo: true,
-        duration: 60,
-        repeat: 4,
-        onComplete: () => {
-          this.attackShakeTween = null;
-        },
-      });
-    }
-  }
-
   enterFlyState() {
     this.state = "FLY";
-    this.attackTargetY = null;
-    this.body.setVelocityY(0);
+    if (this.body) {
+      this.body.setVelocityY(0);
+      this.body.setVelocityX(0);
+    }
     this.anims.play("bat-fly", true);
-    this.attackHasLaunched = false;
+    this.diving = false;
+    if (this.shakeTween) {
+      this.shakeTween.stop();
+      this.shakeTween = null;
+    }
   }
 
   enterAttackState() {
@@ -66,10 +47,28 @@ export default class Bat extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
+    this.prepareDive();
+  }
+
+  prepareDive() {
     this.state = "ATTACK";
-    this.anims.play("bat-dive", true);
-    this.attackTargetY = null;
-    this.attackHasLaunched = false;
+    this.diving = false;
+    if (this.body) {
+      this.body.setVelocityX(0);
+      this.body.setVelocityY(0);
+    }
+    this.anims.play("bat-fly", true);
+    this.startShake();
+    this.scene.time.delayedCall(
+      500,
+      () => {
+        if (this.state === "ATTACK" && !this.diving) {
+          this.startDive();
+        }
+      },
+      null,
+      this
+    );
   }
 
   triggerAttack() {
@@ -81,13 +80,14 @@ export default class Bat extends Phaser.Physics.Arcade.Sprite {
     this.health -= amount;
     if (this.health <= 0) {
       this.die();
-    } else {
-      this.enterHitState();
+      return;
     }
+    this.startDamageFlash();
   }
 
   die() {
     if (!this.active) return;
+    this.diving = false;
     this.scene.smallExplosions?.getFirstDead(true, this.x, this.y);
     this.destroy();
   }
@@ -99,8 +99,6 @@ export default class Bat extends Phaser.Physics.Arcade.Sprite {
 
     if (this.state === "FLY") {
       this.handleFlyState();
-    } else if (this.state === "HIT") {
-      this.handleHitState();
     } else if (this.state === "ATTACK") {
       this.handleAttackState();
     }
@@ -132,99 +130,103 @@ export default class Bat extends Phaser.Physics.Arcade.Sprite {
   }
 
   handleAttackState() {
-    this.body.setVelocityX(0);
-    if (!this.attackDelayTimer && !this.attackHasLaunched) {
-      this.startAttackShake();
-      this.attackDelayTimer = this.scene.time.delayedCall(
-        500,
-        () => {
-          this.attackDelayTimer = null;
-          if (this.state === "ATTACK" && this.body && !this.attackHasLaunched) {
-            this.attackHasLaunched = true;
-            this.scene.sound.play("badBatDive");
-            this.anims.play("bat-dive", true);
-            this.body.setVelocityY(this.attackDiveSpeed);
-          }
-        },
-        null,
-        this
-      );
-    }
-  }
-
-  enterHitState() {
-    if (this.state === "HIT") {
+    if (!this.diving) {
+      this.body.setVelocityX(0);
+      this.body.setVelocityY(0);
       return;
     }
-    this.state = "HIT";
-    this.clearAttackPrep();
-    if (this.body) {
-      this.body.setVelocity(0, 0);
-    }
-    this.anims.play("bat-fly", true);
-    this.handleHitState();
-  }
 
-  handleHitState() {
-    this.body.setVelocity(0, 0);
-    this.anims.play("bat-fly", true);
+    this.body.setVelocityX(0);
+    this.body.setVelocityY(this.attackDiveSpeed);
+    this.anims.play("bat-dive", true);
 
-    if (!this.flashTimer) {
-      this.flashTimer = this.scene.time.addEvent({
-        delay: 75,
-        loop: true,
-        callback: () => {
-          if (!this.isTinted) {
-            this.setTint(0xff0000);
-          } else {
-            this.clearTint();
-          }
-        },
-      });
-    }
-
-    if (!this.hitTimer) {
-      this.hitTimer = this.scene.time.addEvent({
-        delay: 250,
-        callback: this.endHitState,
-        callbackScope: this,
-      });
+    const bounds = this.scene.physics.world.bounds;
+    if (this.y >= bounds.bottom - 4) {
+      this.die();
     }
   }
 
-  endHitState() {
-    this.clearTint();
-    if (this.flashTimer) {
-      this.flashTimer.remove(false);
-      this.flashTimer = null;
+  startShake() {
+    if (this.shakeTween) {
+      this.shakeTween.stop();
     }
-    if (this.hitTimer) {
-      this.hitTimer.remove(false);
-      this.hitTimer = null;
-    }
-    this.enterFlyState();
+
+    const amplitude = 2;
+    this.shakeTween = this.scene.tweens.add({
+      targets: this,
+      x: this.x + amplitude,
+      duration: 60,
+      ease: "Sine.easeInOut",
+      yoyo: true,
+      repeat: 3,
+      onComplete: () => {
+        this.shakeTween = null;
+      },
+    });
+  }
+
+  startDive() {
+    this.diving = true;
+    this.body.setVelocityX(0);
+    this.body.setVelocityY(this.attackDiveSpeed);
+    this.anims.play("bat-dive", true);
+    this.scene.sound.play("badBatDive");
   }
 
   destroy() {
     if (this.flashTimer) {
       this.flashTimer.remove(false);
     }
-    if (this.hitTimer) {
-      this.hitTimer.remove(false);
+    if (this.flashCleanupTimer) {
+      this.flashCleanupTimer.remove(false);
+      this.flashCleanupTimer = null;
     }
     this.clearAttackPrep();
     super.destroy();
   }
 
   clearAttackPrep() {
-    if (this.attackDelayTimer) {
-      this.attackDelayTimer.remove(false);
-      this.attackDelayTimer = null;
+    this.diving = false;
+    if (this.shakeTween) {
+      this.shakeTween.stop();
+      this.shakeTween = null;
     }
-    if (this.attackShakeTween) {
-      this.attackShakeTween.stop();
-      this.attackShakeTween = null;
+    if (this.flashCleanupTimer) {
+      this.flashCleanupTimer.remove(false);
+      this.flashCleanupTimer = null;
     }
-    this.attackHasLaunched = false;
+  }
+
+  startDamageFlash() {
+    if (this.flashTimer) {
+      return;
+    }
+
+    this.flashTimer = this.scene.time.addEvent({
+      delay: 75,
+      repeat: 5,
+      callback: () => {
+        if (!this.isTinted) {
+          this.setTint(0xff0000);
+        } else {
+          this.clearTint();
+        }
+      },
+      callbackScope: this,
+    });
+    const totalDuration = (this.flashTimer.repeat + 1) * this.flashTimer.delay;
+    this.flashCleanupTimer = this.scene.time.delayedCall(
+      totalDuration,
+      () => {
+        this.clearTint();
+        if (this.flashTimer) {
+          this.flashTimer.remove(false);
+          this.flashTimer = null;
+        }
+        this.flashCleanupTimer = null;
+      },
+      null,
+      this
+    );
   }
 }

@@ -8,14 +8,14 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     scene.physics.add.existing(this);
 
     this.body.setSize(8, 20, false);
-    this.body.setOffset(4, 12);
+    this.body.setOffset(4, 12);    
     this.speed = 40;
     this.cursors = scene.input.keyboard.createCursorKeys();
     this.zkey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
     this.xkey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
     this.facingRight = true;
     this.lastFired = 0;
-    this.fireRate = 500;
+    this.fireRate = 5000;
     this.state = "NONE";
     this.rollDistance = 30;
     this.rollDuration = 400;
@@ -153,6 +153,9 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   startRoll(direction, triggerTime) {
+    this.body.checkCollision.left = false;
+    this.body.checkCollision.right = false;
+    this.body.checkCollision.up = false;
     this.state = "ROLL";
     this.rollDirection = direction;
     this.lastRollTime = triggerTime ?? this.scene.time.now;
@@ -184,8 +187,12 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     this.state = "NONE";
+    this.body.checkCollision.left = true;
+    this.body.checkCollision.right = true;
+    this.body.checkCollision.up = true;
     this.rollDirection = 0;
     this.body.setVelocityX(0);
+    this.body.checkCollision.none = false;
     this.play("player-idle", true);
   }
 
@@ -236,6 +243,11 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     }
     this.hitTimer = undefined;
     this.clearTint();
+
+    if (this.state !== "DEAD" && this.body && !this.body.enable) {
+      this.body.enable = true;
+      this.body.checkCollision.none = false;
+    }
   }
 
   enterDeathState() {
@@ -263,6 +275,10 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
     this.play("player-lay-down", true);
     this.scene.events.emit("player-dead");
+    if (this.body) {
+      this.body.checkCollision.none = true;
+      this.body.enable = false;
+    }
   }
 
   flash() {
