@@ -89,6 +89,7 @@ export default class Bat extends Phaser.Physics.Arcade.Sprite {
     if (!this.active) return;
     this.diving = false;
     this.scene.smallExplosions?.getFirstDead(true, this.x, this.y);
+    this.scene.spawnCoin(this.x, this.y);
     this.destroy();
   }
 

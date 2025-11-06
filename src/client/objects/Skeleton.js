@@ -24,7 +24,7 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
     this.readyToThrow = true;
     this.punchGlideStarted = false;
     this.punchGlideTween = null;
-    this.maxConsecutiveThrows = 2;
+    this.maxConsecutiveThrows = 3;
     this.remainingThrows = this.maxConsecutiveThrows;
     
     this.resetAttackRanges();
@@ -227,6 +227,7 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
 
   die() {
     this.scene.explosions.getFirstDead(true, this.x - 2, this.y + 3);
+    this.scene.spawnCoin(this.x, this.y);
     this.clearTimer('throwAttackTimer');
     this.clearTimer('punchAttackTimer');
     this.cancelPunchGlide();
@@ -241,7 +242,7 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
   }
 
   resetAttackRanges() {
-    this.throwAttackRangeX = Phaser.Math.Between(100, 150);
+    this.throwAttackRangeX = Phaser.Math.Between(125, 160);
     this.punchAttackRangeX = Phaser.Math.Between(15, 80);
   }
 

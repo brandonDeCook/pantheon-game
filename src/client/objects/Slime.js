@@ -24,7 +24,7 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
     this.hitTimer = null;
     this.facingRight = true;
 
-    this.jumpRangeToPlayer = Phaser.Math.Between(20, 30);
+    this.jumpRangeToPlayer = Phaser.Math.Between(30, 50);
     this.jumpSpeedY = -100;
     this.jumpHorizontalVelocity = Phaser.Math.Between(35, 45);
     this.jumpCooldown = 1000;
@@ -213,6 +213,7 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
     this.clearHitTimers();
     this.clearTint();
     this.scene.smallExplosions?.getFirstDead(true, this.x, this.y);
+    this.scene.spawnCoin(this.x, this.y);
     this.destroy();
   }
 

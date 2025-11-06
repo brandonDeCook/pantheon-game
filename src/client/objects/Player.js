@@ -17,7 +17,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.lastFired = 0;
     this.fireRate = 5000;
     this.state = "NONE";
-    this.rollDistance = 30;
+    this.rollDistance = 35;
     this.rollDuration = 400;
     this.rollSpeed = this.rollDistance / (this.rollDuration / 1000);
     this.rollDirection = 0;
@@ -46,6 +46,15 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         fontFamily: "standard",
         fontSize: "24px",
         color: "#FFFFFF",
+
+      })
+      .setScale(1 / zoom);
+
+    this.coinText = scene.add
+      .text(264, 24, "COINS:0", {
+        fontFamily: "standard",
+        fontSize: "24px",
+        color: "#FFFFFF",
       })
       .setScale(1 / zoom);
 
@@ -61,6 +70,10 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
   update(time, delta) {
     const { left, right, up, down } = this.cursors;
+    if (this.coinText) {
+      const coins = this.scene.playerCoins ?? 0;
+      this.coinText.setText(`COINS:${coins}`);
+    }
     if (this.state === "DEAD") {
       if (this.body) {
         this.body.setVelocity(0, 0);

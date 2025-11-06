@@ -5,11 +5,20 @@ import Explosion from "../objects/Explosion.js";
 import Bone from "../objects/Bone.js";
 import Player from "../objects/Player.js";
 import Bat from "../objects/Bat.js";
+import Lizard from "../objects/Lizard.js";
+import Coin from "../objects/Coin.js";
 import Slime from "../objects/Slime.js";
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
     super({ key: "GameScene" });
+    this.playerCoins = 0;
+  }
+
+  init(data) {
+    if (typeof data.playerCoins === "number") {
+      this.playerCoins = data.playerCoins;
+    }
   }
 
   preload() {}
@@ -72,6 +81,24 @@ export default class GameScene extends Phaser.Scene {
       visible: true,
     });
 
+    this.lizards = this.physics.add.group({
+      classType: Lizard,
+      frameQuantity: 6,
+      allowGravity: true,
+      runChildUpdate: true,
+      active: true,
+      visible: true,
+    });
+
+    this.coins = this.physics.add.group({
+      classType: Coin,
+      frameQuantity: 20,
+      allowGravity: false,
+      runChildUpdate: true,
+      active: true,
+      visible: true,
+    });
+
     this.slimes = this.physics.add.group({
       classType: Slime,
       frameQuantity: 10,
@@ -94,6 +121,8 @@ export default class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.skeletons, groundLayer);
     this.physics.add.collider(this.bats, groundLayer, this.onBatCollideGround, null, this);
     this.physics.add.collider(this.slimes, groundLayer);
+    this.physics.add.collider(this.lizards, groundLayer);
+    this.physics.add.collider(this.coins, groundLayer);
 
     this.physics.add.collider(
       this.player,
@@ -103,7 +132,7 @@ export default class GameScene extends Phaser.Scene {
       this
     );
 
-    this.physics.add.collider(
+    this.physics.add.overlap(
       this.player.arrows,
       this.skeletons,
       this.onArrowOverlapSkeleton,
@@ -111,7 +140,7 @@ export default class GameScene extends Phaser.Scene {
       this
     );
 
-    this.physics.add.collider(
+    this.physics.add.overlap(
       this.player.arrows,
       this.bats,
       this.onArrowOverlapBat,
@@ -119,7 +148,7 @@ export default class GameScene extends Phaser.Scene {
       this
     );
 
-    this.physics.add.collider(
+    this.physics.add.overlap(
       this.player.arrows,
       this.slimes,
       this.onArrowOverlapSlime,
@@ -147,6 +176,30 @@ export default class GameScene extends Phaser.Scene {
       this.player,
       this.slimes,
       this.onPlayerOverlapSlime,
+      null,
+      this
+    );
+
+    this.physics.add.collider(
+      this.player,
+      this.lizards,
+      this.onPlayerOverlapLizard,
+      null,
+      this
+    );
+
+    this.physics.add.overlap(
+      this.player.arrows,
+      this.lizards,
+      this.onArrowOverlapLizard,
+      null,
+      this
+    );
+
+    this.physics.add.overlap(
+      this.player,
+      this.coins,
+      this.onPlayerOverlapCoin,
       null,
       this
     );
@@ -203,12 +256,32 @@ export default class GameScene extends Phaser.Scene {
     bat.die();
   }
 
+  onPlayerOverlapLizard(player, lizard) {
+    if (!player.active || !lizard.active) return;
+    player.hit();
+  }
+
   onArrowOverlapBat(arrow, bat) {
     if (!bat.active) return;
     arrow.setActive(false);
     arrow.setVisible(false);
     arrow.body.enable = false;
     bat.takeDamage(1);
+  }
+
+  onArrowOverlapLizard(arrow, lizard) {
+    if (!lizard.active) return;
+    arrow.setActive(false);
+    arrow.setVisible(false);
+    arrow.body.enable = false;
+    lizard.takeDamage(1);
+  }
+
+  onPlayerOverlapCoin(player, coin) {
+    if (!coin.active) return;
+    this.sound.play("coinPickup");
+    this.playerCoins += coin.value ?? 0;
+    coin.collect();
   }
 
   onArrowOverlapSlime(arrow, slime) {
@@ -346,8 +419,7 @@ export default class GameScene extends Phaser.Scene {
           skeleton.state = "WALK";
           skeleton.health = 4;
           this.registerWaveEnemy(skeleton);
-        }
-        else {
+        } else {
           this.handleFailedSpawn();
         }
         break;
@@ -360,8 +432,22 @@ export default class GameScene extends Phaser.Scene {
           bat.clearTint();
           bat.enterFlyState();
           this.registerWaveEnemy(bat);
+        } else {
+          this.handleFailedSpawn();
         }
-        else {
+        break;
+      }
+      case "lizard": {
+        const lizard = this.lizards.getFirstDead(true, x, spawnY);
+        if (lizard) {
+          lizard.health = lizard.maxHealth ?? 16;
+          lizard.clearTint();
+          if (lizard.body) {
+            lizard.body.setVelocity(0, 0);
+          }
+          lizard.play("lizard-walk", true);
+          this.registerWaveEnemy(lizard);
+        } else {
           this.handleFailedSpawn();
         }
         break;
@@ -379,8 +465,7 @@ export default class GameScene extends Phaser.Scene {
           slime.facingRight = true;
           slime.play("slime-walk", true);
           this.registerWaveEnemy(slime);
-        }
-        else {
+        } else {
           this.handleFailedSpawn();
         }
         break;
@@ -509,5 +594,18 @@ export default class GameScene extends Phaser.Scene {
       },
       callbackScope: this,
     });
+  }
+
+  spawnCoin(x, y) {
+    if (!this.coins) return;
+    if (Phaser.Math.Between(0, 100) < 20) {
+      return;
+    }
+
+    const coin = this.coins.getFirstDead(true, x, y);
+    if (!coin) return;
+
+    const value = Phaser.Math.Between(10, 50);
+    coin.activate(x, Math.max(y - 10, 0), value);
   }
 }
