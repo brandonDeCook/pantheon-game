@@ -6,7 +6,9 @@ import Bone from "../objects/Bone.js";
 import Player from "../objects/Player.js";
 import Bat from "../objects/Bat.js";
 import Lizard from "../objects/Lizard.js";
+import DemonSamurai from "../objects/DemonSamurai.js";
 import Coin from "../objects/Coin.js";
+import Slash from "../objects/Slash.js";
 import Slime from "../objects/Slime.js";
 
 export default class GameScene extends Phaser.Scene {
@@ -93,7 +95,25 @@ export default class GameScene extends Phaser.Scene {
     this.coins = this.physics.add.group({
       classType: Coin,
       frameQuantity: 20,
+      allowGravity: true,
+      runChildUpdate: true,
+      active: true,
+      visible: true,
+    });
+
+    this.slashes = this.physics.add.group({
+      classType: Slash,
+      frameQuantity: 10,
       allowGravity: false,
+      runChildUpdate: true,
+      active: true,
+      visible: true,
+    });
+
+    this.demonSamurai = this.physics.add.group({
+      classType: DemonSamurai,
+      frameQuantity: 3,
+      allowGravity: true,
       runChildUpdate: true,
       active: true,
       visible: true,
@@ -123,6 +143,23 @@ export default class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.slimes, groundLayer);
     this.physics.add.collider(this.lizards, groundLayer);
     this.physics.add.collider(this.coins, groundLayer);
+    this.physics.add.overlap(this.slashes, this.player, this.onSlashOverlapPlayer, null, this);
+    this.physics.add.collider(this.demonSamurai, groundLayer);
+
+    this.boundaryWalls = this.physics.add.staticGroup();
+    const wallThickness = 32;
+    const wallHeight = mapH + 200;
+    const leftWall = this.add.rectangle(-wallThickness / 2, mapH / 2, wallThickness, wallHeight).setOrigin(0.5).setVisible(false);
+    const rightWall = this.add.rectangle(mapW + wallThickness / 2, mapH / 2, wallThickness, wallHeight).setOrigin(0.5).setVisible(false);
+    this.physics.add.existing(leftWall, true);
+    this.physics.add.existing(rightWall, true);
+    this.boundaryWalls.add(leftWall);
+    this.boundaryWalls.add(rightWall);
+
+    this.physics.add.collider(this.boundaryWalls, this.skeletons);
+    this.physics.add.collider(this.boundaryWalls, this.slimes);
+    this.physics.add.collider(this.boundaryWalls, this.lizards);
+    this.physics.add.collider(this.boundaryWalls, this.demonSamurai);
 
     this.physics.add.collider(
       this.player,
@@ -188,10 +225,26 @@ export default class GameScene extends Phaser.Scene {
       this
     );
 
+    this.physics.add.collider(
+      this.player,
+      this.demonSamurai,
+      this.onPlayerOverlapDemon,
+      null,
+      this
+    );
+
     this.physics.add.overlap(
       this.player.arrows,
       this.lizards,
       this.onArrowOverlapLizard,
+      null,
+      this
+    );
+
+    this.physics.add.overlap(
+      this.player.arrows,
+      this.demonSamurai,
+      this.onArrowOverlapDemon,
       null,
       this
     );
@@ -278,7 +331,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   onPlayerOverlapCoin(player, coin) {
-    if (!coin.active) return;
+    if (!coin.active || !coin.canBeCollected) return;
     this.sound.play("coinPickup");
     this.playerCoins += coin.value ?? 0;
     coin.collect();
@@ -290,6 +343,27 @@ export default class GameScene extends Phaser.Scene {
     arrow.setVisible(false);
     arrow.body.enable = false;
     slime.hit();
+  }
+
+  onPlayerOverlapDemon(player, demon) {
+    if (!player.active || !demon.active) return;
+    player.hit();
+  }
+
+  onArrowOverlapDemon(arrow, demon) {
+    if (!demon.active) return;
+    arrow.setActive(false);
+    arrow.setVisible(false);
+    arrow.body.enable = false;
+    demon.takeDamage(1);
+  }
+
+  onSlashOverlapPlayer(player, slash) {
+    if (!player.active || !slash.active) return;
+    const playerWasHit = player.hit();
+    if (playerWasHit) {
+      slash.despawn();
+    }
   }
 
   onPlayerOverlapSlime(player, slime) {
@@ -452,6 +526,21 @@ export default class GameScene extends Phaser.Scene {
         }
         break;
       }
+      case "demonSamurai": {
+        const demon = this.demonSamurai.getFirstDead(true, x, spawnY);
+        if (demon) {
+          demon.health = demon.maxHealth ?? 24;
+          demon.clearTint();
+          if (demon.body) {
+            demon.body.setVelocity(0, 0);
+          }
+          demon.play("samurai-demon-walk", true);
+          this.registerWaveEnemy(demon);
+        } else {
+          this.handleFailedSpawn();
+        }
+        break;
+      }
       case "slime": {
         const slime = this.slimes.getFirstDead(true, x, spawnY);
         if (slime) {
@@ -598,14 +687,14 @@ export default class GameScene extends Phaser.Scene {
 
   spawnCoin(x, y) {
     if (!this.coins) return;
-    if (Phaser.Math.Between(0, 100) < 20) {
+    if (Phaser.Math.Between(0, 100) > 35) {
       return;
     }
 
     const coin = this.coins.getFirstDead(true, x, y);
     if (!coin) return;
 
-    const value = Phaser.Math.Between(10, 50);
+    const value = Phaser.Math.Between(5, 30);
     coin.activate(x, Math.max(y - 10, 0), value);
   }
 }

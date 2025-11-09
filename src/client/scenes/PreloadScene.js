@@ -90,6 +90,11 @@ export default class PreloadScene extends Phaser.Scene {
       "/assets/pantheon-coin.png",
       "/assets/pantheon-coin.json"
     );
+    this.load.aseprite(
+      "demonSamurai",
+      "/assets/pantheon-boss-demon-samurai.png",
+      "/assets/pantheon-boss-demon-samurai.json"
+    );
     this.load.json("enemyWaves", "/assets/enemy-waves.json");
     this.load.aseprite(
       "healthBar",
@@ -107,9 +112,11 @@ export default class PreloadScene extends Phaser.Scene {
     this.load.audio("explosion", "/assets/pantheon-explosion.wav");
     this.load.audio("playerHit", "/assets/pantheon-player-hit.wav");
     this.load.audio("hit", "/assets/pantheon-hit.wav");
+    this.load.audio("slash", "/assets/pantheon-slash.wav");
     this.load.audio("playerHit2", "/assets/player-hit-damage.wav");
     this.load.audio("coinPickup", "/assets/pantheon-coin-pickup.wav");
     this.load.audio("badBatDive", "/assets/pantheon-bad-bat-dive.wav");
+    this.load.image("slashShot", "/assets/sword-slash.png");
   }
 
   create() {
@@ -129,6 +136,7 @@ export default class PreloadScene extends Phaser.Scene {
     if (coinIdle) {
       coinIdle.repeat = -1;
     }
+    this.anims.createFromAseprite("demonSamurai");
     this.anims.createFromAseprite("healthBar");
 
     this.checkReadyToStart();

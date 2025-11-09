@@ -20,7 +20,7 @@ const config = {
     mode: Phaser.Scale.NONE,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  physics: { default: "arcade", arcade: { gravity: { y: 200 }, debug: false } },
+  physics: { default: "arcade", arcade: { gravity: { y: 200 }, debug: true } },
   scene: [PreloadScene, TitleScene, ControlsScene, GameScene],
 };
 

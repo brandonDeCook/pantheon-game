@@ -211,12 +211,12 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
   hit() {
     if (this.state === "DEAD" || this.state === "ROLL" || this.state === "HIT") {
-      return;
+      return false;
     }
 
     if (this.playerHealth.current <= 0) {
       this.enterDeathState();
-      return;
+      return true;
     }
 
     this.scene.sound.play("playerHit");
@@ -233,7 +233,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
     if (this.playerHealth.current <= 0) {
       this.enterDeathState();
-      return;
+      return true;
     }
 
     this.state = "HIT";
@@ -246,6 +246,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         repeat: 0,
       });
     }
+
+    return true;
   }
 
   endHit() {

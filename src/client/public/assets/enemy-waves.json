@@ -1,9 +1,29 @@
 {
   "defaultIntervalMs": 0,
   "waves": [
-    { 
+    {
+      "name": "WAVE TEST BOSS",
+      "startDelay": 0,
+      "spawns": [        
+        { "type": "demonSamurai", "side": "right", "count": 1, "interval": 0, "startOffset": 3000, "y": 150 }
+      ]
+    },
+    {
       "name": "WAVE 1",
       "startDelay": 0,
+      "spawns": [
+        { "type": "slime", "side": "left", "count": 1, "interval": 2500, "startOffset": 0, "y": 150 },
+        { "type": "slime", "side": "right", "count": 1, "interval": 4500, "startOffset": 4000, "y": 150 },
+        { "type": "skeleton", "side": "left", "count": 1, "interval": 3500, "startOffset": 9000, "y": 150 },
+        { "type": "skeleton", "side": "right", "count": 1, "interval": 2000, "startOffset": 14000, "y": 150 },
+        { "type": "slime", "side": "left", "count": 1, "interval": 4500, "startOffset": 18000, "y": 150 },
+        { "type": "slime", "side": "right", "count": 2, "interval": 3000, "startOffset": 20000, "y": 150 },
+        { "type": "skeleton", "side": "left", "count": 2, "interval": 2000, "startOffset": 22000, "y": 150 }
+      ]
+    },
+    {
+      "name": "WAVE 2",
+      "startDelay": 3000,
       "spawns": [
         { "type": "slime", "side": "left", "count": 2, "interval": 2500, "startOffset": 0, "y": 150 },
         { "type": "slime", "side": "right", "count": 1, "interval": 4500, "startOffset": 0, "y": 150 },
@@ -12,11 +32,10 @@
         { "type": "slime", "side": "left", "count": 1, "interval": 4500, "startOffset": 12000, "y": 150 },
         { "type": "slime", "side": "right", "count": 2, "interval": 3000, "startOffset": 14000, "y": 150 },
         { "type": "skeleton", "side": "left", "count": 2, "interval": 2000, "startOffset": 16000, "y": 150 }
-        
       ]
     },
     {
-      "name": "WAVE 2",
+      "name": "WAVE 3",
       "startDelay": 3000,
       "spawns": [
         { "type": "skeleton", "side": "left", "count": 3, "interval": 4500, "startOffset": 0, "y": 150 },
@@ -27,15 +46,15 @@
         { "type": "slime", "side": "right", "count": 3, "interval": 2500, "startOffset": 16700, "y": 110 },
         { "type": "bat", "side": "right", "count": 1, "interval": 2500, "startOffset": 18000, "y": 75 },
         { "type": "bat", "side": "left", "count": 2, "interval": 2500, "startOffset": 19000, "y": 65 }
-    ]
-  },
-  {
-      "name": "WAVE 3",
+      ]
+    },
+    {
+      "name": "WAVE 4",
       "startDelay": 3000,
       "spawns": [
         { "type": "lizard", "side": "left", "count": 1, "interval": 2200, "startOffset": 0, "y": 150 },
         { "type": "lizard", "side": "left", "count": 1, "interval": 2200, "startOffset": 9000, "y": 150 },
-        { "type": "lizard", "side": "right", "count": 1, "interval": 2200, "startOffset": 11000, "y": 150 },        
+        { "type": "lizard", "side": "right", "count": 1, "interval": 2200, "startOffset": 11000, "y": 150 },
         { "type": "bat", "side": "right", "count": 2, "interval": 6000, "startOffset": 13000, "y": 80 },
         { "type": "bat", "side": "left", "count": 3, "interval": 6000, "startOffset": 16000, "y": 80 },
         { "type": "skeleton", "side": "right", "count": 4, "interval": 4500, "startOffset": 12000, "y": 150 },

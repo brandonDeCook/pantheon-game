@@ -16,6 +16,8 @@ export default class Coin extends Phaser.Physics.Arcade.Sprite {
 
     this.lifespanTimer = null;
     this.flashTimer = null;
+    this.pickupDelayTimer = null;
+    this.canBeCollected = false;
   }
 
   setValue(amount) {
@@ -31,12 +33,10 @@ export default class Coin extends Phaser.Physics.Arcade.Sprite {
     this.play("coin-idle", true);
     if (this.body) {
       this.body.enable = true;
-      this.body.setVelocity(
-        Phaser.Math.Between(0, 0),
-        Phaser.Math.Between(40, 120)
-      );
+      this.body.setVelocity(0, 40);
     }
     this.startLifespan();
+    this.beginPickupDelay();
   }
 
   startLifespan() {
@@ -47,6 +47,7 @@ export default class Coin extends Phaser.Physics.Arcade.Sprite {
       this.flashTimer.remove(false);
       this.flashTimer = null;
     }
+    this.clearPickupDelay();
 
     this.play("coin-idle", true);
 
@@ -88,9 +89,32 @@ export default class Coin extends Phaser.Physics.Arcade.Sprite {
       this.lifespanTimer.remove(false);
       this.lifespanTimer = null;
     }
+    this.clearPickupDelay();
   }
 
   collect() {
     this.despawn();
+  }
+
+  beginPickupDelay() {
+    this.clearPickupDelay();
+    this.canBeCollected = false;
+    this.pickupDelayTimer = this.scene.time.delayedCall(
+      300,
+      () => {
+        this.canBeCollected = true;
+        this.pickupDelayTimer = null;
+      },
+      null,
+      this
+    );
+  }
+
+  clearPickupDelay() {
+    if (this.pickupDelayTimer) {
+      this.pickupDelayTimer.remove(false);
+      this.pickupDelayTimer = null;
+    }
+    this.canBeCollected = false;
   }
 }

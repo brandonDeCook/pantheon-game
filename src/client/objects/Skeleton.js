@@ -11,7 +11,7 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
     
     this.state = "WALK";
     this.health = 8;
-    this.speed = 50;
+    this.speed = 23;
     this.throwSpeed = 2500;
     this.facingRight = true;
     
@@ -177,7 +177,7 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
       this.flipX = !playerToRight;
     }
     
-    this.body.setVelocityX(playerToRight ? 20 : -20);
+    this.body.setVelocityX(playerToRight ? this.speed : -(this.speed));
   }
 
   throwAttack() {
@@ -261,10 +261,20 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
       this.punchGlideStarted = true;
       const direction = this.facingRight ? 1 : -1;
       const glideDistance = 60 * direction;
+      const bounds = this.scene.physics.world.bounds;
+      const halfWidth = (this.body?.width ?? this.width ?? 0) * 0.5;
+      const minX = bounds.left + halfWidth;
+      const maxX = bounds.right - halfWidth;
+      const targetX = Phaser.Math.Clamp(this.x + glideDistance, minX, maxX);
+      const actualDistance = targetX - this.x;
+      if (actualDistance === 0) {
+        this.endPunchAttack();
+        return;
+      }
       this.cancelPunchGlide();
       this.punchGlideTween = this.scene.tweens.add({
         targets: this,
-        x: this.x + glideDistance,
+        x: targetX,
         duration: 750,
         ease: "Sine.easeOut",
         onComplete: () => {
