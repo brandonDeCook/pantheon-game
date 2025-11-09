@@ -11,15 +11,18 @@ export default class Slash extends Phaser.Physics.Arcade.Sprite {
     this.body.setImmovable(true);
     this.body.setSize(this.width, this.height);
     this.lifespanTimer = null;
+    this.defaultLifespan = 1500;
+    this.currentLifespan = this.defaultLifespan;
   }
 
-  activate(x, y, velocityX) {
+  activate(x, y, velocityX, lifespan) {
     this.setPosition(x, y);
     this.setActive(true);
     this.setVisible(true);
     this.body.enable = true;
     this.body.setVelocity(velocityX, 0);
     this.setFlipX(velocityX < 0);
+    this.currentLifespan = lifespan ?? this.defaultLifespan;
     this.startLifespan();
   }
 
@@ -27,8 +30,9 @@ export default class Slash extends Phaser.Physics.Arcade.Sprite {
     if (this.lifespanTimer) {
       this.lifespanTimer.remove(false);
     }
+    const duration = this.currentLifespan ?? this.defaultLifespan;
     this.lifespanTimer = this.scene.time.delayedCall(
-      1500,
+      duration,
       () => this.despawn(),
       null,
       this

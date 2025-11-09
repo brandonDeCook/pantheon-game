@@ -15,6 +15,8 @@ export default class TitleScene extends Phaser.Scene {
 
     this.menuOptions = ["START", "CONTROLS"];
     this.selectedIndex = 0;
+    this.secretBuffer = "";
+    this.secretWaveIndex = null;
 
     this.optionTexts = this.menuOptions.map((label, index) =>
       this.add
@@ -31,6 +33,7 @@ export default class TitleScene extends Phaser.Scene {
     this.input.keyboard.on("keydown-UP", () => this.changeSelection(-1));
     this.input.keyboard.on("keydown-DOWN", () => this.changeSelection(1));
     this.input.keyboard.on("keydown-ENTER", () => this.confirmSelection());
+    this.input.keyboard.on("keydown", this.handleSecretInput, this);
 
     this.flashing = false;
     this.flashTimer = null;
@@ -47,6 +50,10 @@ export default class TitleScene extends Phaser.Scene {
     );
     this.sound.play("menuMove");
     this.updateSelection();
+
+    if (this.menuOptions[this.selectedIndex] !== "START") {
+      this.resetSecretCode();
+    }
   }
 
   updateSelection() {
@@ -80,11 +87,54 @@ export default class TitleScene extends Phaser.Scene {
           const selected = this.menuOptions[this.selectedIndex];
           const targetScene =
             selected === "START" ? "GameScene" : "ControlsScene";
-          this.scene.start(targetScene);
+          const sceneData =
+            selected === "START" && typeof this.secretWaveIndex === "number"
+              ? { startWaveIndex: this.secretWaveIndex }
+              : undefined;
+          this.scene.start(targetScene, sceneData);
         }
       },
       loop: true,
     });
+  }
+
+  handleSecretInput(event) {
+    if (
+      this.flashing ||
+      this.menuOptions[this.selectedIndex] !== "START" ||
+      !event.key
+    ) {
+      return;
+    }
+
+    if (event.key === "Backspace") {
+      this.secretBuffer = this.secretBuffer.slice(0, -1);
+      return;
+    }
+
+    if (event.key.length !== 1) {
+      return;
+    }
+
+    const lower = event.key.toLowerCase();
+    if (!/[a-z0-9]/.test(lower)) {
+      return;
+    }
+
+    this.secretBuffer += lower;
+    if (this.secretBuffer.length > 16) {
+      this.secretBuffer = this.secretBuffer.slice(-16);
+    }
+
+    const match = this.secretBuffer.match(/garb(\d+)$/);
+    if (match) {
+      this.secretWaveIndex = parseInt(match[1], 10);
+    }
+  }
+
+  resetSecretCode() {
+    this.secretBuffer = "";
+    this.secretWaveIndex = null;
   }
 
   cleanup() {
@@ -92,5 +142,6 @@ export default class TitleScene extends Phaser.Scene {
       this.flashTimer.remove(false);
       this.flashTimer = null;
     }
+    this.input.keyboard.off("keydown", this.handleSecretInput, this);
   }
 }

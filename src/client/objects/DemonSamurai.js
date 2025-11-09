@@ -28,6 +28,16 @@ export default class DemonSamurai extends Phaser.Physics.Arcade.Sprite {
     this.attacksRemaining = 0;
     this.walkTimer = null;
     this.attackIdleTimer = null;
+    this.jumpAttackRange = 250;
+    this.jumpHorizontalSpeed = 160;
+    this.jumpUpVelocity = -260;
+    this.jumpDownVelocity = 460;
+    this.jumpPauseDuration = 150;
+    this.jumpOverThreshold = 8;
+    this.jumpTargetX = null;
+    this.jumpInitialDirection = null;
+    this.jumpPauseTimer = null;
+    this.jumpStartY = null;
 
     this.on(Phaser.Animations.Events.ANIMATION_COMPLETE, this.onAnimComplete, this);
 
@@ -41,6 +51,21 @@ export default class DemonSamurai extends Phaser.Physics.Arcade.Sprite {
 
   update() {
     if (!this.active || !this.body) return;
+
+    if (this.state === "JUMP_ASCEND") {
+      this.handleJumpAscend();
+      return;
+    }
+
+    if (this.state === "JUMP_PAUSE") {
+      this.body.setVelocity(0, 0);
+      return;
+    }
+
+    if (this.state === "JUMP_SLAM") {
+      this.handleJumpSlam();
+      return;
+    }
 
     if (this.state === "ATTACK" || this.state === "ATTACK_IDLE") {
       this.body.setVelocityX(0);
@@ -121,6 +146,11 @@ export default class DemonSamurai extends Phaser.Physics.Arcade.Sprite {
     this.clearReacquireTimer();
     this.clearWalkTimer();
     this.clearAttackIdleTimer();
+    this.clearJumpPauseTimer();
+    this.jumpTargetX = null;
+    this.jumpInitialDirection = null;
+    this.jumpStartY = null;
+    this.body?.setAllowGravity(true);
 
     const offsets = [-10, 10];
     offsets.forEach((offset) => {
@@ -138,6 +168,10 @@ export default class DemonSamurai extends Phaser.Physics.Arcade.Sprite {
     this.clearReacquireTimer();
     this.clearWalkTimer();
     this.clearAttackIdleTimer();
+    this.clearJumpPauseTimer();
+    this.jumpTargetX = null;
+    this.jumpInitialDirection = null;
+    this.jumpStartY = null;
     super.destroy(fromScene);
   }
 
@@ -167,6 +201,8 @@ export default class DemonSamurai extends Phaser.Physics.Arcade.Sprite {
   startWalkCycle() {
     this.state = "WALK";
     this.attacksRemaining = 0;
+    this.jumpStartY = null;
+    this.body?.setAllowGravity(true);
     this.clearWalkTimer();
     this.walkTimer = this.scene.time.delayedCall(
       Phaser.Math.Between(2000, 4000),
@@ -197,16 +233,166 @@ export default class DemonSamurai extends Phaser.Physics.Arcade.Sprite {
 
   performAttack() {
     if (!this.active) return;
-    this.state = "ATTACK";
-    this.body?.setVelocityX(0);
     this.alignDirectionToPlayer();
+    if (this.shouldDoJumpAttack()) {
+      this.startJumpAttack();
+      return;
+    }
+    this.startSlashAttack();
+  }
+
+  startSlashAttack() {
+    this.state = "ATTACK";
+    this.body?.setAllowGravity(true);
+    this.body?.setVelocityX(0);
     this.spawnSlash();
     this.playAttackSound();
     this.anims.play("samurai-demon-attack", true);
   }
 
+  shouldDoJumpAttack() {
+    if (!this.player || !this.player.active) {
+      return false;
+    }
+
+    const distance = Phaser.Math.Distance.Between(
+      this.x,
+      this.y,
+      this.player.x,
+      this.player.y
+    );
+
+    if (distance >= this.jumpAttackRange) {
+      return false;
+    }
+
+    return Phaser.Math.FloatBetween(0, 1) <= 0.35;
+  }
+
+  startJumpAttack() {
+    if (!this.body) {
+      this.startSlashAttack();
+      return;
+    }
+
+    if (!this.player || !this.player.active) {
+      this.startSlashAttack();
+      return;
+    }
+
+    this.state = "JUMP_ASCEND";
+    this.body.setAllowGravity(true);
+    this.clearJumpPauseTimer();
+    this.alignDirectionToPlayer();
+    this.jumpInitialDirection = this.currentDirection || 1;
+    if (this.jumpInitialDirection === 0) {
+      this.jumpInitialDirection = 1;
+    }
+    this.jumpTargetX = this.player.x + this.jumpInitialDirection * 8;
+    this.jumpStartY = this.y;
+    this.body.setVelocityX(this.jumpInitialDirection * this.jumpHorizontalSpeed);
+    this.body.setVelocityY(this.jumpUpVelocity);
+    this.flipX = this.jumpInitialDirection > 0;
+    this.anims.play("samurai-demon-jump", true);
+  }
+
+  handleJumpAscend() {
+    if (!this.body) return;
+
+    const direction = this.jumpInitialDirection || 1;
+    this.body.setVelocityX(direction * this.jumpHorizontalSpeed);
+
+    const targetX =
+      this.jumpTargetX ??
+      (this.player && this.player.active
+        ? this.player.x
+        : this.x + direction * this.jumpOverThreshold);
+
+    const closeEnough = Math.abs(this.x - targetX) <= this.jumpOverThreshold;
+    const passedTarget =
+      (direction > 0 && this.x >= targetX) ||
+      (direction < 0 && this.x <= targetX);
+
+    const hasClearedPlayer = closeEnough || passedTarget;
+    const hasReachedApex = this.body.velocity.y >= 0;
+    const hasClearedMinimumHeight =
+      this.jumpStartY === null || this.y <= this.jumpStartY - 12;
+
+    if (hasClearedPlayer && (hasClearedMinimumHeight || hasReachedApex)) {
+      this.beginJumpPause();
+      return;
+    }
+  }
+
+  beginJumpPause() {
+    if (this.state !== "JUMP_ASCEND" || !this.body) return;
+    this.state = "JUMP_PAUSE";
+    this.body.setVelocity(0, 0);
+    this.body.setAllowGravity(false);
+    this.clearJumpPauseTimer();
+    this.anims.play("samurai-demon-down-attack", true);
+    this.jumpPauseTimer = this.scene.time.delayedCall(
+      this.jumpPauseDuration,
+      () => this.beginJumpSlam(),
+      null,
+      this
+    );
+  }
+
+  beginJumpSlam() {
+    if (this.state !== "JUMP_PAUSE" || !this.body) return;
+    this.clearJumpPauseTimer();
+    this.state = "JUMP_SLAM";
+    this.body.setAllowGravity(true);
+    this.body.setVelocity(0, this.jumpDownVelocity);
+    this.anims.play("samurai-demon-down-attack", true);
+  }
+
+  handleJumpSlam() {
+    if (!this.body) return;
+    this.body.setVelocityX(0);
+    if (this.body.velocity.y < this.jumpDownVelocity) {
+      this.body.setVelocityY(this.jumpDownVelocity);
+    }
+    if (this.body.blocked.down || this.body.touching.down) {
+      this.finishJumpAttack();
+    }
+  }
+
+  finishJumpAttack() {
+    if (this.state !== "JUMP_SLAM") {
+      return;
+    }
+    
+    this.scene.cameras?.main?.shake(100, 0.002);
+    this.scene.sound.play("stomp", { volume: 3.0 });
+    this.spawnGroundShockwaveSlashes();
+    this.body?.setVelocity(0, 0);
+    this.body?.setAllowGravity(true);
+    this.jumpTargetX = null;
+    this.jumpInitialDirection = null;
+    this.jumpStartY = null;
+    this.clearJumpPauseTimer();
+
+    this.attacksRemaining = Math.max(0, this.attacksRemaining - 1);
+
+    if (this.attacksRemaining > 0) {
+      this.startAttackIdle();
+    } else {
+      this.startWalkCycle();
+    }
+  }
+
+  clearJumpPauseTimer() {
+    if (this.jumpPauseTimer) {
+      this.jumpPauseTimer.remove(false);
+      this.jumpPauseTimer = null;
+    }
+  }
+
   startAttackIdle() {
     this.state = "ATTACK_IDLE";
+    this.body?.setAllowGravity(true);
     this.body?.setVelocityX(0);
     this.anims.play("samurai-demon-idle", true);
     this.clearAttackIdleTimer();
@@ -240,7 +426,7 @@ export default class DemonSamurai extends Phaser.Physics.Arcade.Sprite {
   }
 
   playAttackSound() {
-    this.scene.sound.play("slash", { volume: 2.0 });
+    this.scene.sound.play("slash", { volume: 2.25 });
   }
 
   spawnSlash() {
@@ -262,6 +448,20 @@ export default class DemonSamurai extends Phaser.Physics.Arcade.Sprite {
     );
   }
 
+  spawnGroundShockwaveSlashes() {
+    if (!this.scene?.slashes) return;
+
+    const baseY = this.body ? this.body.bottom - 4 : this.y + 10;
+    const lifespan = 225;
+    const speed = 220;
+
+    [-1, 1].forEach((direction) => {
+      const slash = this.scene.slashes.getFirstDead(true, this.x, baseY);
+      if (!slash) return;
+      slash.activate(this.x, baseY, direction * speed, lifespan);
+    });
+  }
+
   alignDirectionToPlayer() {
     if (!this.player || !this.player.active) return;
     const deltaX = this.player.x - this.x;
@@ -269,4 +469,4 @@ export default class DemonSamurai extends Phaser.Physics.Arcade.Sprite {
     this.currentDirection = direction;
     this.flipX = direction > 0;
   }
- }
+}

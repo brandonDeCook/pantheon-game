@@ -15,11 +15,20 @@ export default class GameScene extends Phaser.Scene {
   constructor() {
     super({ key: "GameScene" });
     this.playerCoins = 0;
+    this.startWaveIndex = 0;
   }
 
-  init(data) {
+  init(data = {}) {
     if (typeof data.playerCoins === "number") {
       this.playerCoins = data.playerCoins;
+    } else {
+      this.playerCoins = 0;
+    }
+
+    if (Number.isInteger(data.startWaveIndex)) {
+      this.startWaveIndex = Math.max(0, data.startWaveIndex);
+    } else {
+      this.startWaveIndex = 0;
     }
   }
 
@@ -406,15 +415,16 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    this.queueWaveStart(0);
+    const startIndex = this.getValidatedStartWaveIndex(waves.length);
+    this.queueWaveStart(startIndex, true);
   }
 
-  queueWaveStart(index) {
+  queueWaveStart(index, immediate = false) {
     const wave = this.waveConfig.waves[index];
     if (!wave) return;
 
-    const baseDelay = index === 0 ? 0 : this.defaultWaveDelay;
-    const delay = wave.startDelay ?? baseDelay;
+    const baseDelay = immediate ? 0 : index === 0 ? 0 : this.defaultWaveDelay;
+    const delay = immediate ? 0 : wave.startDelay ?? baseDelay;
     const timer = this.time.delayedCall(
       delay,
       () => this.startWave(index),
@@ -618,6 +628,18 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.queueWaveStart(nextIndex);
+  }
+
+  getValidatedStartWaveIndex(totalWaves) {
+    if (!Number.isInteger(this.startWaveIndex)) {
+      return 0;
+    }
+
+    if (this.startWaveIndex < 0 || this.startWaveIndex >= totalWaves) {
+      return 0;
+    }
+
+    return this.startWaveIndex;
   }
 
   cleanupGameOverUI() {

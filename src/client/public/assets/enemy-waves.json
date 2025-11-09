@@ -1,13 +1,6 @@
 {
   "defaultIntervalMs": 0,
-  "waves": [
-    {
-      "name": "WAVE TEST BOSS",
-      "startDelay": 0,
-      "spawns": [        
-        { "type": "demonSamurai", "side": "right", "count": 1, "interval": 0, "startOffset": 3000, "y": 150 }
-      ]
-    },
+  "waves": [    
     {
       "name": "WAVE 1",
       "startDelay": 0,
@@ -59,6 +52,13 @@
         { "type": "bat", "side": "left", "count": 3, "interval": 6000, "startOffset": 16000, "y": 80 },
         { "type": "skeleton", "side": "right", "count": 4, "interval": 4500, "startOffset": 12000, "y": 150 },
         { "type": "skeleton", "side": "left", "count": 3, "interval": 3500, "startOffset": 14000, "y": 150 }
+      ]
+    },
+    {
+      "name": "BOSS 1",
+      "startDelay": 3000,
+      "spawns": [        
+        { "type": "demonSamurai", "side": "right", "count": 1, "interval": 0, "startOffset": 3000, "y": 150 }
       ]
     }
   ]

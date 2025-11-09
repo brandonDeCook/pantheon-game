@@ -113,6 +113,7 @@ export default class PreloadScene extends Phaser.Scene {
     this.load.audio("playerHit", "/assets/pantheon-player-hit.wav");
     this.load.audio("hit", "/assets/pantheon-hit.wav");
     this.load.audio("slash", "/assets/pantheon-slash.wav");
+    this.load.audio("stomp", "/assets/pantheon-stomp.wav");
     this.load.audio("playerHit2", "/assets/player-hit-damage.wav");
     this.load.audio("coinPickup", "/assets/pantheon-coin-pickup.wav");
     this.load.audio("badBatDive", "/assets/pantheon-bad-bat-dive.wav");
