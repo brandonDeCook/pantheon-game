@@ -14,6 +14,10 @@ export default class ControlsScene extends Phaser.Scene {
       "SHOOT: Z",
       "SHOOT UP: UP ARROW + Z",
       "ROLL: LEFT OR RIGHT ARROW + X",
+      "JUMP: UP ARROW + X",
+      "JUMP LEFT: UP ARROW + LEFT ARROW + X",
+      "JUMP RIGHT: UP ARROW + RIGHT ARROW + X",
+      "PAUSE: RIGHT SHIFT"
     ];
 
     const lineSpacing = 32;

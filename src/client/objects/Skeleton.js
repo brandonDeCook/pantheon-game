@@ -26,6 +26,7 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
     this.punchGlideTween = null;
     this.maxConsecutiveThrows = 3;
     this.remainingThrows = this.maxConsecutiveThrows;
+    this.isHit = false;
     
     this.resetAttackRanges();
     this.currentAttackAtX = 0;
@@ -47,10 +48,11 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
       this.currentXDistanceFromPlayer = this.x - this.scene.player.x;
     }
 
+    if (this.isHit) {
+      this.updateHitEffects();
+    }
+
     switch (this.state) {
-      case "HIT":
-        this.updateHitState();
-        break;
       case "THROW_ATTACK":
         this.updateThrowAttackState();
         break;
@@ -63,10 +65,7 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
-  updateHitState() {
-    this.anims.play("skeleton-hit", true);
-    this.body.setVelocityX(0);
-    
+  updateHitEffects() {
     if (!this.hitTimer) {
       this.hitTimer = this.scene.time.addEvent({
         delay: 400,
@@ -74,7 +73,7 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
         callbackScope: this,
       });
     }
-    
+
     if (!this.flashTimer) {
       this.flashTimer = this.scene.time.addEvent({
         delay: 75,
@@ -162,7 +161,7 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    this.state = "HIT";
+    this.isHit = true;
     this.clearTimer("punchAttackTimer");
     this.cancelPunchGlide();
     this.clearTimer("hitTimer");
@@ -219,7 +218,7 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
   }
 
   endHit() {
-    this.state = "WALK";
+    this.isHit = false;
     this.clearTimer('flashTimer');
     this.clearTimer('hitTimer');
     this.clearTint();

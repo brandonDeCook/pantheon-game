@@ -1,6 +1,14 @@
 {
   "defaultIntervalMs": 0,
-  "waves": [    
+  "waves": [
+    {
+      "name": "WAVE TEST",
+      "startDelay": 0,
+      "spawns": [
+        { "type": "slime", "side": "left", "count": 3, "interval": 9500, "startOffset": 0, "y": 150 },
+        { "type": "slime", "side": "right", "count": 3, "interval": 9500, "startOffset": 4000, "y": 150 }
+      ]
+    },    
     {
       "name": "WAVE 1",
       "startDelay": 0,

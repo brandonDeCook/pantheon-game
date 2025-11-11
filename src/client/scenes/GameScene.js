@@ -16,6 +16,13 @@ export default class GameScene extends Phaser.Scene {
     super({ key: "GameScene" });
     this.playerCoins = 0;
     this.startWaveIndex = 0;
+    this.isPaused = false;
+    this.boundHandleGlobalKeyDown = null;
+    this.pauseText = null;
+    this.pauseFlashElapsed = 0;
+    this.pauseFlashInterval = 350;
+    this.pauseTextVisible = true;
+    this.pauseSound = null;
   }
 
   init(data = {}) {
@@ -266,7 +273,7 @@ export default class GameScene extends Phaser.Scene {
       this
     );
 
-    this.spawnPadding = -4;
+    this.spawnPadding = -2;
     this.waveEvents = [];
     this.waveText = null;
     this.waveTextTimer = null;
@@ -277,11 +284,22 @@ export default class GameScene extends Phaser.Scene {
     this.waveEnemiesRemaining = 0;
     this.scheduleEnemyWaves();
 
+    this.pauseSound = this.sound.add("pause");
+
+    this.boundHandleGlobalKeyDown = this.handleGlobalKeyDown.bind(this);
+    this.input.keyboard.on("keydown", this.boundHandleGlobalKeyDown);
+
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.cleanupWaveEvents, this);
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.cleanupGameOverUI, this);
+    this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.cleanupInputListeners, this);
   }
 
   update(time, delta) {
+    this.updatePauseIndicator(delta);
+    if (this.isPaused) {
+      return;
+    }
+
     this.player.update(time, delta);
     this.bones.children.each(
       function (bone) {
@@ -705,6 +723,90 @@ export default class GameScene extends Phaser.Scene {
       },
       callbackScope: this,
     });
+  }
+
+  handleGlobalKeyDown(event) {
+    if (!event || event.code !== "ShiftRight") {
+      return;
+    }
+
+    this.togglePause();
+  }
+
+  togglePause() {
+    const nextState = !this.isPaused;
+    this.setPausedState(nextState);
+    this.pauseSound?.play();
+  }
+
+  setPausedState(paused) {
+    this.isPaused = paused;
+    if (this.physics && this.physics.world) {
+      this.physics.world.isPaused = paused;
+    }
+    if (this.time) {
+      this.time.timeScale = paused ? 0 : 1;
+    }
+    if (this.anims) {
+      this.anims.globalTimeScale = paused ? 0 : 1;
+    }
+
+    if (paused) {
+      this.showPauseIndicator();
+    } else {
+      this.hidePauseIndicator();
+    }
+  }
+
+  cleanupInputListeners() {
+    if (this.boundHandleGlobalKeyDown) {
+      this.input.keyboard.off("keydown", this.boundHandleGlobalKeyDown);
+      this.boundHandleGlobalKeyDown = null;
+    }
+  }
+
+  showPauseIndicator() {
+    if (this.pauseText) {
+      return;
+    }
+
+    const centerX = this.cameras.main.midPoint.x;
+    const centerY = this.cameras.main.midPoint.y;
+    this.pauseText = this.add
+      .text(centerX, centerY, "PAUSE", {
+        fontFamily: "standard",
+        fontSize: "24px",
+        color: "#FFFFFF",
+      })
+      .setOrigin(0.5)
+      .setDepth(9999)
+      .setScale(1 / this.cameras.main.zoom);
+
+    this.pauseFlashElapsed = 0;
+    this.pauseTextVisible = true;
+    this.pauseText.setVisible(true);
+  }
+
+  hidePauseIndicator() {
+    if (this.pauseText) {
+      this.pauseText.destroy();
+      this.pauseText = null;
+    }
+    this.pauseFlashElapsed = 0;
+    this.pauseTextVisible = true;
+  }
+
+  updatePauseIndicator(delta = 0) {
+    if (!this.pauseText) {
+      return;
+    }
+
+    this.pauseFlashElapsed += delta;
+    if (this.pauseFlashElapsed >= this.pauseFlashInterval) {
+      this.pauseFlashElapsed = 0;
+      this.pauseTextVisible = !this.pauseTextVisible;
+      this.pauseText.setVisible(this.pauseTextVisible);
+    }
   }
 
   spawnCoin(x, y) {

@@ -167,6 +167,10 @@ export default class Bat extends Phaser.Physics.Arcade.Sprite {
   }
 
   startDive() {
+    if (!this.active || !this.body) {
+      return;
+    }
+
     this.diving = true;
     this.body.setVelocityX(0);
     this.body.setVelocityY(this.attackDiveSpeed);

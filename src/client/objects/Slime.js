@@ -1,7 +1,6 @@
 import Phaser from "phaser";
 
 const STATE_WALK = "WALK";
-const STATE_HIT = "HIT";
 const STATE_JUMP = "JUMP";
 const STATE_LAND = "LAND";
 
@@ -23,6 +22,7 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
     this.flashTimer = null;
     this.hitTimer = null;
     this.facingRight = true;
+    this.isHit = false;
 
     this.jumpRangeToPlayer = Phaser.Math.Between(30, 50);
     this.jumpSpeedY = -100;
@@ -54,10 +54,11 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
+    if (this.isHit) {
+      this.updateHitEffects();
+    }
+
     switch (this.state) {
-      case STATE_HIT:
-        this.handleHitState();
-        break;
       case STATE_JUMP:
         this.handleJumpState();
         break;
@@ -99,10 +100,7 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
     this.anims.play("slime-walk", true);
   }
 
-  handleHitState() {
-    this.body.setVelocityX(0);
-    this.anims.play("slime-walk", true);
-
+  updateHitEffects() {
     if (!this.flashTimer) {
       this.flashTimer = this.scene.time.addEvent({
         delay: 75,
@@ -140,12 +138,9 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
     }
 
     this.health = Math.max(0, this.health - 1);
-    this.state = STATE_HIT;
     this.scene.sound.play("hit");
     this.jumpDirection = 0;
-    if (this.body) {
-      this.body.setVelocityX(0);
-    }
+    this.isHit = true;
 
     if (this.health <= 0) {
       this.die();
@@ -153,7 +148,7 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
     }
 
     this.clearHitTimers();
-    this.handleHitState();
+    this.updateHitEffects();
   }
 
   startJump(direction) {
@@ -181,7 +176,7 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
   endHitState() {
     this.clearHitTimers();
     if (this.health > 0) {
-      this.state = STATE_WALK;
+      this.isHit = false;
       this.clearTint();
     }
   }
@@ -212,6 +207,7 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
 
     this.clearHitTimers();
     this.clearTint();
+    this.isHit = false;
     this.scene.smallExplosions?.getFirstDead(true, this.x, this.y);
     this.scene.spawnCoin(this.x, this.y);
     this.destroy();

@@ -8,7 +8,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     scene.physics.add.existing(this);
 
     this.body.setSize(8, 20, false);
-    this.body.setOffset(4, 12);    
+    this.body.setOffset(4, 12);
+    this.body.setGravityY(650);
     this.speed = 40;
     this.cursors = scene.input.keyboard.createCursorKeys();
     this.zkey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
@@ -17,13 +18,18 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.lastFired = 0;
     this.fireRate = 5000;
     this.state = "NONE";
-    this.rollDistance = 35;
+    this.rollDistance = 40;
     this.rollDuration = 400;
     this.rollSpeed = this.rollDistance / (this.rollDuration / 1000);
     this.rollDirection = 0;
     this.rollTimer = null;
     this.rollCooldown = 900;
     this.lastRollTime = -this.rollCooldown;
+    this.jumpVelocity = -220;
+    this.jumpAnimationState = "GROUND";
+    this.jumpAnimFinished = false;
+    this.jumpHoldFrame = null;
+    this.jumpAnimationsEnsured = false;
     this.play("player-idle");
     this.setCollideWorldBounds(true);
     this.arrowShootSound = scene.sound.add("arrowShoot");
@@ -70,6 +76,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
   update(time, delta) {
     const { left, right, up, down } = this.cursors;
+    const xJustPressed = Phaser.Input.Keyboard.JustDown(this.xkey);
+    const onGround = this.isOnGround();
     if (this.coinText) {
       const coins = this.scene.playerCoins ?? 0;
       this.coinText.setText(`COINS:${coins}`);
@@ -86,19 +94,41 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
+    if (this.state === "JUMP") {
+      if (onGround && this.body && this.body.velocity.y >= 0) {
+        this.completeJump();
+      } else {
+        this.handleJumpMovement(left, right);
+        return;
+      }
+    }
+
+    const jumpTriggered = this.canStartJump({
+      upIsDown: up.isDown,
+      downIsDown: down.isDown,
+      onGround,
+      xJustPressed,
+    });
+
+    if (jumpTriggered) {
+      this.startJump();
+      return;
+    }
+
     const rollDirection =
       right.isDown && !left.isDown
         ? 1
         : left.isDown && !right.isDown
         ? -1
         : 0;
+    const canRollState = this.state === "NONE" || this.state === "HIT";
     const rollTriggered =
-      this.state === "NONE" &&
+      canRollState &&
       rollDirection !== 0 &&
       !down.isDown &&
       this.xkey.isDown &&
       time - this.lastRollTime >= this.rollCooldown &&
-      (Phaser.Input.Keyboard.JustDown(this.xkey) ||
+      (xJustPressed ||
         Phaser.Input.Keyboard.JustDown(right) ||
         Phaser.Input.Keyboard.JustDown(left));
     if (rollTriggered) {
@@ -207,6 +237,147 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.body.setVelocityX(0);
     this.body.checkCollision.none = false;
     this.play("player-idle", true);
+  }
+
+  isOnGround() {
+    if (!this.body) {
+      return false;
+    }
+    const body = this.body;
+    if (typeof body.onFloor === "function" && body.onFloor()) {
+      return true;
+    }
+    return (body.blocked && body.blocked.down) || (body.touching && body.touching.down) || false;
+  }
+
+  canStartJump({ upIsDown, downIsDown, onGround, xJustPressed }) {
+    if (!onGround || !upIsDown || downIsDown) {
+      return false;
+    }
+
+    if (this.state !== "NONE") {
+      return false;
+    }
+
+    return !!xJustPressed;
+  }
+
+  startJump() {
+    if (!this.body) {
+      return;
+    }
+
+    this.ensureJumpAnimations();
+    this.state = "JUMP";
+    this.jumpAnimFinished = false;
+    this.jumpAnimationState = "ASCENT_START";
+    this.body.setVelocityY(this.jumpVelocity);
+    this.anims.play("player-jump", true);
+  }
+
+  handleJumpMovement(left, right) {
+    if (!this.body) {
+      return;
+    }
+
+    let direction = 0;
+    if (left.isDown && !right.isDown) {
+      direction = -1;
+    } else if (right.isDown && !left.isDown) {
+      direction = 1;
+    }
+
+    this.body.setVelocityX(direction * this.speed);
+    if (direction !== 0) {
+      this.facingRight = direction > 0;
+      this.flipX = direction < 0;
+    }
+
+    if (this.body.velocity.y < 0) {
+      this.showJumpRiseFrame();
+    } else {
+      this.playFallAnimation();
+    }
+  }
+
+  showJumpRiseFrame(force = false) {
+    if (!force && !this.jumpAnimFinished) {
+      return;
+    }
+
+    if (this.jumpAnimationState === "ASCENT_HOLD") {
+      return;
+    }
+
+    const frameName = this.getJumpHoldFrameName();
+    if (frameName) {
+      this.anims.stop();
+      this.setFrame(frameName);
+    } else {
+      this.anims.play("player-jump", true);
+    }
+
+    this.jumpAnimationState = "ASCENT_HOLD";
+  }
+
+  playFallAnimation() {
+    if (this.jumpAnimationState === "FALL") {
+      return;
+    }
+
+    this.anims.play("player-fall", true);
+    this.jumpAnimationState = "FALL";
+  }
+
+  completeJump() {
+    if (this.state !== "JUMP") {
+      return;
+    }
+
+    this.state = "NONE";
+    this.jumpAnimationState = "GROUND";
+    this.jumpAnimFinished = false;
+    this.anims.play("player-idle", true);
+  }
+
+  getJumpHoldFrameName() {
+    if (!this.jumpHoldFrame) {
+      const jumpAnimation = this.anims.animationManager.get("player-jump");
+      if (jumpAnimation && jumpAnimation.frames.length) {
+        this.jumpHoldFrame =
+          jumpAnimation.frames[jumpAnimation.frames.length - 1];
+      }
+    }
+
+    return this.jumpHoldFrame?.frame?.name ?? null;
+  }
+
+  ensureJumpAnimations() {
+    if (this.jumpAnimationsEnsured) {
+      return;
+    }
+
+    const manager = this.scene.anims;
+    manager.remove("player-jump");
+    manager.create({
+      key: "player-jump",
+      frames: [
+        { key: "player", frame: "10" },
+        { key: "player", frame: "9" },
+      ],
+      frameRate: 10,
+      repeat: 0,
+    });
+
+    manager.remove("player-fall");
+    manager.create({
+      key: "player-fall",
+      frames: [{ key: "player", frame: "9" }],
+      frameRate: 10,
+      repeat: -1,
+    });
+
+    this.jumpAnimationsEnsured = true;
   }
 
   hit() {
@@ -357,6 +528,11 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         arrow.body.setVelocityX(0);
         arrow.body.enable = true;
         this.arrowShootSound?.play();
+      }
+    } else if (key === "player-jump" && this.state === "JUMP") {
+      this.jumpAnimFinished = true;
+      if (this.body && this.body.velocity.y < 0) {
+        this.showJumpRiseFrame(true);
       }
     } else if (key === "player-roll") {
       this.endRoll();

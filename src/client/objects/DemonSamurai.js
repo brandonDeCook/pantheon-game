@@ -11,7 +11,7 @@ export default class DemonSamurai extends Phaser.Physics.Arcade.Sprite {
     this.body.setCollideWorldBounds(true);
 
     this.speed = 18;
-    this.maxHealth = 24;
+    this.maxHealth = 38;
     this.health = this.maxHealth;
 
     this.player = scene.player;
@@ -364,7 +364,7 @@ export default class DemonSamurai extends Phaser.Physics.Arcade.Sprite {
       return;
     }
     
-    this.scene.cameras?.main?.shake(100, 0.002);
+    this.scene.cameras?.main?.shake(75, 0.001);
     this.scene.sound.play("stomp", { volume: 3.0 });
     this.spawnGroundShockwaveSlashes();
     this.body?.setVelocity(0, 0);
@@ -452,7 +452,7 @@ export default class DemonSamurai extends Phaser.Physics.Arcade.Sprite {
     if (!this.scene?.slashes) return;
 
     const baseY = this.body ? this.body.bottom - 4 : this.y + 10;
-    const lifespan = 225;
+    const lifespan = 250;
     const speed = 220;
 
     [-1, 1].forEach((direction) => {
