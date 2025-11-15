@@ -97,6 +97,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   update(time, delta) {
     const { left, right, up, down } = this.cursors;
     const xJustPressed = Phaser.Input.Keyboard.JustDown(this.xkey);
+    const upJustPressed = Phaser.Input.Keyboard.JustDown(up);
     const onGround = this.isOnGround();
     if (this.coinText) {
       const coins = this.scene.playerCoins ?? 0;
@@ -123,12 +124,15 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       }
     }
 
-    const jumpTriggered = this.canStartJump({
-      upIsDown: up.isDown,
-      downIsDown: down.isDown,
-      onGround,
-      xJustPressed,
-    });
+    let jumpTriggered = false;
+    if (!this.zkey.isDown) {
+      jumpTriggered = this.canStartJump({
+        upIsDown: up.isDown,
+        downIsDown: down.isDown,
+        onGround,
+        upJustPressed,
+      });
+    }
 
     if (jumpTriggered) {
       this.startJump();
@@ -279,16 +283,16 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     return (body.blocked && body.blocked.down) || (body.touching && body.touching.down) || false;
   }
 
-  canStartJump({ upIsDown, downIsDown, onGround, xJustPressed }) {
+  canStartJump({ upIsDown, downIsDown, onGround, upJustPressed }) {
     if (!onGround || !upIsDown || downIsDown) {
       return false;
     }
 
-    if (this.state !== "NONE") {
+    if (this.state !== "NONE" && this.state !== "HIT") {
       return false;
     }
 
-    return !!xJustPressed;
+    return !!upJustPressed;
   }
 
   startJump() {
