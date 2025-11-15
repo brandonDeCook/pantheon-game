@@ -846,7 +846,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   handleGlobalKeyDown(event) {
-    if (!event || event.code !== "KeyP") {
+    if (!event || event.code !== "Enter") {
       return;
     }
 

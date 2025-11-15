@@ -9,7 +9,7 @@ export default class ControlsScene extends Phaser.Scene {
     const centerX = this.scale.width * 0.5;
     const centerY = this.scale.height * 0.5;
 
-    const instructions = [
+   const instructions = [
       "MOVEMENT: ARROW KEYS",
       "SHOOT: Z",
       "SHOOT UP: UP ARROW + Z",
@@ -17,8 +17,10 @@ export default class ControlsScene extends Phaser.Scene {
       "JUMP: UP ARROW",
       "JUMP LEFT: UP ARROW + LEFT ARROW + X",
       "JUMP RIGHT: UP ARROW + RIGHT ARROW + X",
-      "PAUSE: RIGHT SHIFT"
+      "PAUSE: ENTER",
+      "SHIFT: CHANGE WEAPON (IF AVAILABLE)"
     ];
+
 
     const lineSpacing = 32;
     const instructionsHeight = (instructions.length - 1) * lineSpacing;
