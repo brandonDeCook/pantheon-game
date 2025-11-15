@@ -23,6 +23,9 @@ export default class GameScene extends Phaser.Scene {
     this.pauseFlashInterval = 350;
     this.pauseTextVisible = true;
     this.pauseSound = null;
+    this.wavesCompleted = 0;
+    this.pendingWaveIndex = 0;
+    this.playerData = null;
   }
 
   init(data = {}) {
@@ -32,10 +35,35 @@ export default class GameScene extends Phaser.Scene {
       this.playerCoins = 0;
     }
 
-    if (Number.isInteger(data.startWaveIndex)) {
-      this.startWaveIndex = Math.max(0, data.startWaveIndex);
+    const waveIndexData = Number.isInteger(data.nextWaveIndex)
+      ? data.nextWaveIndex
+      : Number.isInteger(data.resumeWaveIndex)
+      ? data.resumeWaveIndex
+      : data.startWaveIndex;
+
+    if (Number.isInteger(waveIndexData)) {
+      this.startWaveIndex = Math.max(0, waveIndexData);
     } else {
       this.startWaveIndex = 0;
+    }
+
+    const wavesCompletedValue = Number.isInteger(data.wavesCompleted)
+      ? data.wavesCompleted
+      : this.wavesCompleted;
+    this.wavesCompleted = Math.max(0, wavesCompletedValue ?? 0);
+
+    if (data && typeof data.playerData === "object") {
+      this.playerData = {
+        coins: Number.isFinite(data.playerData.coins)
+          ? data.playerData.coins
+          : this.playerCoins,
+        health: { ...(data.playerData.health ?? {}) },
+        powerups: Array.isArray(data.playerData.powerups)
+          ? [...data.playerData.powerups]
+          : [],
+      };
+    } else {
+      this.playerData = null;
     }
   }
 
@@ -58,7 +86,8 @@ export default class GameScene extends Phaser.Scene {
       .centerOn(mapW / 2, mapH / 2)
       .setRoundPixels(true);
 
-    this.player = new Player(this, 150, 150, 4);
+    this.player = new Player(this, 150, 150, 4, this.playerData);
+    this.applyPlayerDataToPlayer();
     this.gameOverText = null;
     this.gameOverFlashTimer = null;
     this.events.on("player-dead", this.onPlayerDead, this);
@@ -434,6 +463,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     const startIndex = this.getValidatedStartWaveIndex(waves.length);
+    this.pendingWaveIndex = startIndex;
     this.queueWaveStart(startIndex, true);
   }
 
@@ -457,6 +487,7 @@ export default class GameScene extends Phaser.Scene {
     if (!wave) return;
 
     this.currentWaveIndex = index;
+    this.pendingWaveIndex = index;
     this.waveInProgress = true;
     let totalEnemies = 0;
     wave.spawns?.forEach((spawn) => {
@@ -519,7 +550,6 @@ export default class GameScene extends Phaser.Scene {
         const skeleton = this.skeletons.getFirstDead(true, x, spawnY);
         if (skeleton) {
           skeleton.state = "WALK";
-          skeleton.health = 4;
           this.registerWaveEnemy(skeleton);
         } else {
           this.handleFailedSpawn();
@@ -530,7 +560,6 @@ export default class GameScene extends Phaser.Scene {
         const bat = this.bats.getFirstDead(true, x, spawnY);
         if (bat) {
           bat.hoverY = spawnY;
-          bat.health = 3;
           bat.clearTint();
           bat.enterFlyState();
           this.registerWaveEnemy(bat);
@@ -542,7 +571,6 @@ export default class GameScene extends Phaser.Scene {
       case "lizard": {
         const lizard = this.lizards.getFirstDead(true, x, spawnY);
         if (lizard) {
-          lizard.health = lizard.maxHealth ?? 16;
           lizard.clearTint();
           if (lizard.body) {
             lizard.body.setVelocity(0, 0);
@@ -557,7 +585,6 @@ export default class GameScene extends Phaser.Scene {
       case "demonSamurai": {
         const demon = this.demonSamurai.getFirstDead(true, x, spawnY);
         if (demon) {
-          demon.health = demon.maxHealth ?? 24;
           demon.clearTint();
           if (demon.body) {
             demon.body.setVelocity(0, 0);
@@ -573,7 +600,6 @@ export default class GameScene extends Phaser.Scene {
         const slime = this.slimes.getFirstDead(true, x, spawnY);
         if (slime) {
           slime.state = "WALK";
-          slime.health = slime.maxHealth ?? 3;
           slime.body.setVelocity(0, 0);
           slime.clearHitTimers?.();
           slime.clearTint();
@@ -640,12 +666,59 @@ export default class GameScene extends Phaser.Scene {
   finishWave() {
     this.waveInProgress = false;
     const nextIndex = this.currentWaveIndex + 1;
+    this.wavesCompleted += 1;
+    this.pendingWaveIndex = nextIndex;
+
+    if (this.shouldVisitShop()) {
+      this.triggerShopVisit(nextIndex);
+      return;
+    }
 
     if (nextIndex >= (this.waveConfig.waves?.length ?? 0)) {
       return;
     }
 
     this.queueWaveStart(nextIndex);
+  }
+
+  shouldVisitShop() {
+    if (this.wavesCompleted === 0) {
+      return false;
+    }
+
+    return this.wavesCompleted % 3 === 0;
+  }
+
+  triggerShopVisit(nextIndex) {
+    if (nextIndex >= (this.waveConfig.waves?.length ?? 0)) {
+      return;
+    }
+
+    this.cleanupWaveEvents();
+    const camera = this.cameras.main;
+    const startShop = () => {
+      camera?.off(
+        Phaser.Cameras.Scene2D.Events.FLASH_COMPLETE,
+        startShop
+      );
+      this.scene.start("ShopKeeperScene", {
+        resumeWaveIndex: nextIndex,
+        nextWaveIndex: nextIndex,
+        playerCoins: this.playerCoins,
+        playerHealth: {
+          current: this.player?.playerHealth?.current ?? 0,
+          max: this.player?.playerHealth?.max ?? 0,
+        },
+        wavesCompleted: this.wavesCompleted,
+      });
+    };
+
+    if (camera) {
+      camera.flash(500, 255, 255, 255);
+      camera.once(Phaser.Cameras.Scene2D.Events.FLASH_COMPLETE, startShop);
+    } else {
+      startShop();
+    }
   }
 
   getValidatedStartWaveIndex(totalWaves) {
@@ -682,6 +755,53 @@ export default class GameScene extends Phaser.Scene {
       this.waveTextTimer = null;
     }
     this.waveText?.destroy();
+  }
+
+  applyPlayerDataToPlayer() {
+    if (!this.player || !this.player.playerHealth) {
+      return;
+    }
+
+    const healthData = this.playerData?.health;
+    if (!healthData) {
+      return;
+    }
+
+    const playerHealth = this.player.playerHealth;
+    const bars = Array.isArray(playerHealth.bars) ? playerHealth.bars : [];
+    const maxBarCount = bars.length || playerHealth.max || 0;
+
+    const requestedMax = Number.isInteger(healthData.max)
+      ? Math.max(0, healthData.max)
+      : playerHealth.max ?? maxBarCount;
+    const clampedMax =
+      maxBarCount > 0 ? Math.min(requestedMax, maxBarCount) : requestedMax;
+
+    const requestedCurrent = Number.isInteger(healthData.current)
+      ? healthData.current
+      : requestedMax;
+    const clampedCurrent = Phaser.Math.Clamp(
+      requestedCurrent,
+      0,
+      clampedMax || 0
+    );
+
+    if (clampedMax > 0) {
+      playerHealth.max = clampedMax;
+    }
+    playerHealth.current = clampedCurrent;
+
+    bars.forEach((bar, index) => {
+      if (!bar) {
+        return;
+      }
+      const visible = clampedMax <= 0 ? false : index < clampedMax;
+      bar.setVisible(visible);
+      if (!visible) {
+        return;
+      }
+      bar.setFrame(index < clampedCurrent ? "0" : "1");
+    });
   }
 
   displayWaveName(name) {
@@ -726,7 +846,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   handleGlobalKeyDown(event) {
-    if (!event || event.code !== "ShiftRight") {
+    if (!event || event.code !== "KeyP") {
       return;
     }
 

@@ -1,7 +1,15 @@
 import Phaser from "phaser";
+import PowerupData from "../data/PowerupData.js";
+
+const DEFAULT_ARROW_POWERUP = {
+  value: "DEFAULT_ARROW",
+  frame: 3,
+  amount: null,
+};
+const POWERUP_HIGHLIGHT_COLOR = 0xf8b800;
 
 export default class Player extends Phaser.Physics.Arcade.Sprite {
-  constructor(scene, x, y, zoom) {
+  constructor(scene, x, y, zoom, playerData = null) {
     super(scene, x, y, "player");
 
     scene.add.existing(this);
@@ -42,6 +50,18 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       );
     }
 
+    this.ArrowPowerups = this.buildArrowPowerups(playerData);
+    this.currentArrowPowerupIndex = 0;
+    this.arrowPowerupIcons = [];
+    this.arrowPowerupHighlight = null;
+    this.arrowPowerupStartX = 0;
+    this.arrowPowerupSpacing = 20;
+    this.arrowPowerupY = 22;
+    this.renderArrowPowerups();
+    this.shiftKey = scene.input.keyboard.addKey(
+      Phaser.Input.Keyboard.KeyCodes.SHIFT
+    );
+
     this.on(
       Phaser.Animations.Events.ANIMATION_COMPLETE,
       this.onAnimComplete.bind(this)
@@ -57,7 +77,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       .setScale(1 / zoom);
 
     this.coinText = scene.add
-      .text(264, 24, "COINS:0", {
+      .text(260, 24, "COINS:0", {
         fontFamily: "standard",
         fontSize: "24px",
         color: "#FFFFFF",
@@ -192,6 +212,15 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
           loop: true,
         });
       }
+    }
+
+    if (
+      this.shiftKey &&
+      Phaser.Input.Keyboard.JustDown(this.shiftKey) &&
+      Array.isArray(this.ArrowPowerups) &&
+      this.ArrowPowerups.length > 1
+    ) {
+      this.selectNextArrowPowerup();
     }
   }
 
@@ -539,5 +568,120 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     } else if (key === "player-lay-down" && this.state === "DEAD") {
       this.play("player-lay-down-idle", true);
     }
+  }
+
+  buildArrowPowerups(playerData) {
+    const list = [
+      {
+        value: DEFAULT_ARROW_POWERUP.value,
+        amount: DEFAULT_ARROW_POWERUP.amount,
+        frame: DEFAULT_ARROW_POWERUP.frame,
+      },
+    ];
+
+    const entries = Array.isArray(playerData?.powerups)
+      ? playerData.powerups
+      : [];
+
+    entries.forEach((value) => {
+      if (typeof value !== "string" || value.startsWith("HEAL_")) {
+        return;
+      }
+      const existing = list.find((entry) => entry.value === value);
+      if (existing) {
+        if (existing.amount !== null) {
+          existing.amount += 1;
+        }
+        return;
+      }
+      const def = PowerupData.findByValue(value);
+      list.push({
+        value,
+        amount: 1,
+        frame: def?.frame ?? DEFAULT_ARROW_POWERUP.frame,
+      });
+    });
+
+    return list;
+  }
+
+  renderArrowPowerups() {
+    if (Array.isArray(this.arrowPowerupIcons)) {
+      this.arrowPowerupIcons.forEach((icon) => icon?.destroy());
+    }
+    this.arrowPowerupIcons = [];
+
+    const lastBarX = 40 + Math.max(0, this.playerHealth.max - 1) * 5;
+    this.arrowPowerupStartX = lastBarX + 20;
+    this.arrowPowerupY = 22;
+    this.arrowPowerupSpacing = 20;
+
+    this.ArrowPowerups.forEach((powerup, index) => {
+      const frame =
+        typeof powerup.frame === "number"
+          ? powerup.frame
+          : DEFAULT_ARROW_POWERUP.frame;
+      const icon = this.scene.add
+        .image(
+          this.arrowPowerupStartX + index * this.arrowPowerupSpacing,
+          this.arrowPowerupY,
+          "playerPowerups",
+          frame
+        )
+        .setOrigin(0.5);
+      this.arrowPowerupIcons.push(icon);
+    });
+
+    this.ensureArrowPowerupHighlight();
+    this.updateArrowPowerupHighlightPosition();
+  }
+
+  ensureArrowPowerupHighlight() {
+    if (this.arrowPowerupHighlight && !this.arrowPowerupHighlight.destroyed) {
+      this.arrowPowerupHighlight.setVisible(true);
+      return;
+    }
+
+    const highlightSize = 16;
+    this.arrowPowerupHighlight = this.scene.add
+      .rectangle(0, 0, highlightSize, highlightSize)
+      .setOrigin(0.5);
+    this.arrowPowerupHighlight.setStrokeStyle(1, POWERUP_HIGHLIGHT_COLOR, 1);
+    this.arrowPowerupHighlight.setFillStyle(0xffffff, 0);
+  }
+
+  updateArrowPowerupHighlightPosition() {
+    if (!this.arrowPowerupHighlight) {
+      return;
+    }
+
+    const index = Phaser.Math.Clamp(
+      this.currentArrowPowerupIndex ?? 0,
+      0,
+      Math.max(0, this.arrowPowerupIcons.length - 1)
+    );
+    this.currentArrowPowerupIndex = index;
+
+    const targetIcon = this.arrowPowerupIcons[index];
+    if (!targetIcon) {
+      this.arrowPowerupHighlight.setVisible(false);
+      return;
+    }
+
+    this.arrowPowerupHighlight.setVisible(true);
+    this.arrowPowerupHighlight.setPosition(targetIcon.x, targetIcon.y);
+    this.arrowPowerupHighlight.setDepth((targetIcon.depth ?? 0) + 1);
+  }
+
+  selectNextArrowPowerup() {
+    const total = this.ArrowPowerups?.length ?? 0;
+    if (total <= 1) {
+      this.currentArrowPowerupIndex = 0;
+      return;
+    }
+
+    const nextIndex = (this.currentArrowPowerupIndex + 1) % total;
+    this.currentArrowPowerupIndex = nextIndex;
+    this.updateArrowPowerupHighlightPosition();
   }
 }

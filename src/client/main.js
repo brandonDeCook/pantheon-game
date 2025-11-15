@@ -3,6 +3,7 @@ import TitleScene from "./scenes/TitleScene.js";
 import GameScene from "./scenes/GameScene.js";
 import PreloadScene from "./scenes/PreloadScene.js";
 import ControlsScene from "./scenes/ControlsScene.js";
+import ShopKeeperScene from "./scenes/ShopKeeperScene.js";
 import "./styles.css";
 
 const BASE_WIDTH = 320;
@@ -21,7 +22,7 @@ const config = {
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   physics: { default: "arcade", arcade: { gravity: { y: 200 }, debug: false } },
-  scene: [PreloadScene, TitleScene, ControlsScene, GameScene],
+  scene: [PreloadScene, TitleScene, ControlsScene, ShopKeeperScene, GameScene],
 };
 
 window.addEventListener("load", () => {

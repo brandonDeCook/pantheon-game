@@ -107,6 +107,8 @@ export default class PreloadScene extends Phaser.Scene {
     this.load.image("tiles", "/assets/pantheon-tileset.png");
     this.load.audio("menuMove", "/assets/pantheon-menu-move.wav");
     this.load.audio("menuSelect", "/assets/pantheon-menu-select.wav");
+    this.load.audio("pantheon-menu-invalid", "/assets/pantheon-menu-invalid.wav");
+    this.load.audio("pantheon-menu-success", "/assets/pantheon-menu-success.wav");
     this.load.audio("arrowShoot", "/assets/pantheon-arrow-shoot.wav");
     this.load.audio("smallExplosion", "/assets/pantheon-small-explosion.wav");
     this.load.audio("explosion", "/assets/pantheon-explosion.wav");
@@ -119,6 +121,12 @@ export default class PreloadScene extends Phaser.Scene {
     this.load.audio("badBatDive", "/assets/pantheon-bad-bat-dive.wav");
     this.load.audio("pause", "/assets/pantheon-pause.wav");
     this.load.image("slashShot", "/assets/sword-slash.png");
+    this.load.image("shopBackground", "/assets/pantheon-shop-keep.png");
+    this.load.image("shopKeeper", "/assets/pantheon-shop-keeper.png");
+    this.load.spritesheet("playerPowerups", "/assets/pantheon-player-powerups.png", {
+      frameWidth: 16,
+      frameHeight: 16,
+    });
   }
 
   create() {
