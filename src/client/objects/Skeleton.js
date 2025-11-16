@@ -6,9 +6,8 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
     this.setCollideWorldBounds(true);
-    this.body.setSize(10, 22, false);
-    this.body.setOffset(4, 10);
-    
+    this.body.setSize(6, 20, false);
+    this.body.setOffset(4, 12);
     this.state = "WALK";
     this.health = 8;
     this.speed = 23;

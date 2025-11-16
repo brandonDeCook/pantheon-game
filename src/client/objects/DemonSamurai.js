@@ -7,7 +7,9 @@ export default class DemonSamurai extends Phaser.Physics.Arcade.Sprite {
     scene.physics.add.existing(this);
 
     this.body.setSize(16, 28, false);
-    this.body.setOffset(12, 30);
+    this.leftFacingBodyOffset = { x: 16, y: 30 };
+    this.rightFacingOffset = { x: 8, y: 30 };
+    this.body.setOffset(this.leftFacingBodyOffset.x, this.leftFacingBodyOffset.y);
     this.body.setCollideWorldBounds(true);
 
     this.speed = 18;
@@ -96,6 +98,7 @@ export default class DemonSamurai extends Phaser.Physics.Arcade.Sprite {
 
     const direction = this.currentDirection || 1;
     this.body.setVelocityX(direction * this.speed);
+    this.updateBodyOffset(direction);
     this.flipX = direction > 0;
     this.anims.play("samurai-demon-walk", true);
   }
@@ -435,7 +438,7 @@ export default class DemonSamurai extends Phaser.Physics.Arcade.Sprite {
       100,
       () => {
         if (!this.active) return;
-        const slash = this.scene.slashes.getFirstDead(true, this.x, this.y);
+        const slash = this.scene.slashes.getFirstDead(true, this.x, this.y + 2);
         if (!slash) return;
         const direction = this.currentDirection || 1;
         const offsetX = direction * 8;
@@ -467,6 +470,19 @@ export default class DemonSamurai extends Phaser.Physics.Arcade.Sprite {
     const deltaX = this.player.x - this.x;
     const direction = Math.sign(deltaX) || this.currentDirection || 1;
     this.currentDirection = direction;
+    this.updateBodyOffset(direction);
     this.flipX = direction > 0;
   }
+
+  updateBodyOffset(direction) {
+    if (!this.body) {
+      return;
+    }
+
+    if (direction > 0) {
+      this.body.setOffset(this.rightFacingOffset.x, this.rightFacingOffset.y);
+    } else {
+      this.body.setOffset(this.leftFacingBodyOffset.x, this.leftFacingBodyOffset.y);
+  }
+}
 }

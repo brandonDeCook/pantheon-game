@@ -15,8 +15,10 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
-    this.body.setSize(8, 20, false);
-    this.body.setOffset(4, 12);
+    this.defaultBodySize = { width: 4, height: 22, offsetX: 7, offsetY: 10 };
+    this.crouchBodySize = { width: 4, height: 15, offsetX: 7, offsetY: 17 };
+    this.body.setSize(this.defaultBodySize.width, this.defaultBodySize.height, false);
+    this.body.setOffset(this.defaultBodySize.offsetX, this.defaultBodySize.offsetY);
     this.body.setGravityY(650);
     this.speed = 40;
     this.cursors = scene.input.keyboard.createCursorKeys();
@@ -149,7 +151,6 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     const rollTriggered =
       canRollState &&
       rollDirection !== 0 &&
-      !down.isDown &&
       this.xkey.isDown &&
       time - this.lastRollTime >= this.rollCooldown &&
       (xJustPressed ||
@@ -178,6 +179,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         }
       }
     } else if (down.isDown) {
+      this.applyCrouchCollider();
       if (left.isDown) {
         this.facingRight = false;
         this.flipX = true;
@@ -193,16 +195,19 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       }
       this.body.setVelocityX(0);
     } else if (right.isDown) {
+      this.resetColliderSize();
       this.facingRight = true;
       this.flipX = false;
       this.anims.play("player-walk", true);
       this.body.setVelocityX(this.speed);
     } else if (left.isDown) {
+      this.resetColliderSize();
       this.facingRight = false;
       this.flipX = true;
       this.anims.play("player-walk", true);
       this.body.setVelocityX(-this.speed);
     } else {
+      this.resetColliderSize();
       this.body.setVelocityX(0);
       this.anims.play("player-idle", true);
     }
@@ -543,6 +548,11 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         arrow.setVisible(true);
         arrow.startX = arrow.x;
         arrow.startY = arrow.y;
+        if (arrow.body) {
+          const baseWidth = arrow.width ?? arrow.displayWidth ?? arrow.body.width ?? 0;
+          const baseHeight = arrow.height ?? arrow.displayHeight ?? arrow.body.height ?? 0;
+          arrow.body.setSize(baseWidth + 1, baseHeight + 1, false);
+        }
         arrow.body.setVelocityX(velocity);
         arrow.body.setVelocityY(0);
         arrow.body.enable = true;
@@ -557,6 +567,11 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         arrow.setVisible(true);
         arrow.startX = arrow.x;
         arrow.startY = arrow.y;
+        if (arrow.body) {
+          const baseWidth = arrow.width ?? arrow.displayWidth ?? arrow.body.width ?? 0;
+          const baseHeight = arrow.height ?? arrow.displayHeight ?? arrow.body.height ?? 0;
+          arrow.body.setSize(baseWidth + 1, baseHeight + 1, false);
+        }
         arrow.body.setVelocityY(-velocityBase);
         arrow.body.setVelocityX(0);
         arrow.body.enable = true;
@@ -687,5 +702,21 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     const nextIndex = (this.currentArrowPowerupIndex + 1) % total;
     this.currentArrowPowerupIndex = nextIndex;
     this.updateArrowPowerupHighlightPosition();
+  }
+
+  applyCrouchCollider() {
+    if (!this.body) {
+      return;
+    }
+    this.body.setSize(this.crouchBodySize.width, this.crouchBodySize.height, false);
+    this.body.setOffset(this.crouchBodySize.offsetX, this.crouchBodySize.offsetY);
+  }
+
+  resetColliderSize() {
+    if (!this.body) {
+      return;
+    }
+    this.body.setSize(this.defaultBodySize.width, this.defaultBodySize.height, false);
+    this.body.setOffset(this.defaultBodySize.offsetX, this.defaultBodySize.offsetY);
   }
 }

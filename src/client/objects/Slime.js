@@ -10,8 +10,8 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
-    this.body.setSize(10, 10, false);
-    this.body.setOffset(4, 4);
+    this.body.setSize(8, 8, false);
+    this.body.setOffset(5, 6);
     this.setDepth(15);
 
     this.player = scene.player;
