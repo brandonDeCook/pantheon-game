@@ -20,7 +20,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.body.setSize(this.defaultBodySize.width, this.defaultBodySize.height, false);
     this.body.setOffset(this.defaultBodySize.offsetX, this.defaultBodySize.offsetY);
     this.body.setGravityY(650);
-    this.speed = 40;
+    this.speed = 45;
     this.cursors = scene.input.keyboard.createCursorKeys();
     this.zkey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
     this.xkey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);

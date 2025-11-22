@@ -17,7 +17,7 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
     this.player = scene.player;
     this.speed = 20;
     this.state = STATE_WALK;
-    this.maxHealth = 4;
+    this.maxHealth = 3;
     this.health = this.maxHealth;
     this.flashTimer = null;
     this.hitTimer = null;

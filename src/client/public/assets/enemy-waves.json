@@ -55,7 +55,7 @@
       ]
     },
     {
-      "name": "BOSS 1",
+      "name": "BOSS",
       "startDelay": 3000,
       "spawns": [        
         { "type": "demonSamurai", "side": "right", "count": 1, "interval": 0, "startOffset": 3000, "y": 150 }

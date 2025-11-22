@@ -713,12 +713,44 @@ export default class GameScene extends Phaser.Scene {
       });
     };
 
-    if (camera) {
-      camera.flash(500, 255, 255, 255);
-      camera.once(Phaser.Cameras.Scene2D.Events.FLASH_COMPLETE, startShop);
-    } else {
-      startShop();
-    }
+    const executeTransition = () => {
+      if (!camera) {
+        startShop();
+        return;
+      }
+
+      const overlay = this.add
+        .rectangle(0, 0, this.scale.width, this.scale.height, 0x000000, 1)
+        .setOrigin(0, 0)
+        .setScrollFactor(0)
+        .setDepth(99999)
+        .setAlpha(0);
+
+      const flashDuration = 1200;
+      const flashInterval = 80;
+      let elapsed = 0;
+      let visible = false;
+
+      this.time.delayedCall(3000, () => {
+        const flashTimer = this.time.addEvent({
+          delay: flashInterval,
+          loop: true,
+          callback: () => {
+            elapsed += flashInterval;
+            visible = !visible;
+            overlay.setAlpha(visible ? 1 : 0);
+
+            if (elapsed >= flashDuration) {
+              flashTimer.remove(false);
+              overlay.destroy();
+              startShop();
+            }
+          },
+        });
+      });
+    };
+
+    executeTransition();
   }
 
   getValidatedStartWaveIndex(totalWaves) {
