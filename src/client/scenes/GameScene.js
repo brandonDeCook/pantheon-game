@@ -59,7 +59,9 @@ export default class GameScene extends Phaser.Scene {
           : this.playerCoins,
         health: { ...(data.playerData.health ?? {}) },
         powerups: Array.isArray(data.playerData.powerups)
-          ? [...data.playerData.powerups]
+          ? data.playerData.powerups.map((entry) =>
+              typeof entry === "object" ? { ...entry } : entry
+            )
           : [],
       };
     } else {
@@ -337,10 +339,25 @@ export default class GameScene extends Phaser.Scene {
     );
   }
 
+  isIceArrow(arrow) {
+    return arrow?.powerupValue === "ICE_ARROW";
+  }
+
+  tryApplyIceEffect(arrow, target) {
+    if (!this.isIceArrow(arrow)) {
+      return;
+    }
+    this.sound.play("iceHit");
+    if (typeof target?.freeze === "function") {
+      target.freeze();
+    }
+  }
+
   onArrowOverlapSkeleton(arrow, skeleton) {
     arrow.setActive(false);
     arrow.setVisible(false);
     arrow.body.enable = false;
+    this.tryApplyIceEffect(arrow, skeleton);
     skeleton.hit();
   }
 
@@ -375,6 +392,7 @@ export default class GameScene extends Phaser.Scene {
     arrow.setActive(false);
     arrow.setVisible(false);
     arrow.body.enable = false;
+    this.tryApplyIceEffect(arrow, bat);
     bat.takeDamage(1);
   }
 
@@ -383,6 +401,7 @@ export default class GameScene extends Phaser.Scene {
     arrow.setActive(false);
     arrow.setVisible(false);
     arrow.body.enable = false;
+    this.tryApplyIceEffect(arrow, lizard);
     lizard.takeDamage(1);
   }
 
@@ -398,6 +417,7 @@ export default class GameScene extends Phaser.Scene {
     arrow.setActive(false);
     arrow.setVisible(false);
     arrow.body.enable = false;
+    this.tryApplyIceEffect(arrow, slime);
     slime.hit();
   }
 
@@ -411,6 +431,7 @@ export default class GameScene extends Phaser.Scene {
     arrow.setActive(false);
     arrow.setVisible(false);
     arrow.body.enable = false;
+    this.tryApplyIceEffect(arrow, demon);
     demon.takeDamage(1);
   }
 
@@ -710,6 +731,7 @@ export default class GameScene extends Phaser.Scene {
           max: this.player?.playerHealth?.max ?? 0,
         },
         wavesCompleted: this.wavesCompleted,
+        playerData: this.buildPlayerDataSnapshot(),
       });
     };
 
@@ -787,6 +809,37 @@ export default class GameScene extends Phaser.Scene {
       this.waveTextTimer = null;
     }
     this.waveText?.destroy();
+  }
+
+  getPlayerPowerupsSnapshot() {
+    if (!Array.isArray(this.player?.ArrowPowerups)) {
+      return [];
+    }
+
+    return this.player.ArrowPowerups
+      .filter(
+        (powerup) =>
+          powerup &&
+          typeof powerup.value === "string" &&
+          powerup.value !== "DEFAULT_ARROW"
+      )
+      .map((powerup) => {
+        const snapshot = { value: powerup.value };
+        if (Number.isFinite(powerup.amount)) {
+          snapshot.amount = powerup.amount;
+        }
+        return snapshot;
+      });
+  }
+
+  buildPlayerDataSnapshot() {
+    const coins = this.playerCoins ?? 0;
+    const health = {
+      current: this.player?.playerHealth?.current ?? 0,
+      max: this.player?.playerHealth?.max ?? 0,
+    };
+    const powerups = this.getPlayerPowerupsSnapshot();
+    return { coins, health, powerups };
   }
 
   applyPlayerDataToPlayer() {

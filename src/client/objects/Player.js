@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import PowerupData from "../data/PowerupData.js";
+import { findPowerupByValue } from "../Constants.js";
 
 const DEFAULT_ARROW_POWERUP = {
   value: "DEFAULT_ARROW",
@@ -43,6 +43,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.play("player-idle");
     this.setCollideWorldBounds(true);
     this.arrowShootSound = scene.sound.add("arrowShoot");
+    this.powerupSelectSound = scene.sound.add("powerupSelect");
     this.setDepth(9001);
 
     this.playerHealth = { current: 5, max: 5, bars: [] };
@@ -55,6 +56,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.ArrowPowerups = this.buildArrowPowerups(playerData);
     this.currentArrowPowerupIndex = 0;
     this.arrowPowerupIcons = [];
+    this.arrowPowerupAmountTexts = [];
     this.arrowPowerupHighlight = null;
     this.arrowPowerupStartX = 0;
     this.arrowPowerupSpacing = 20;
@@ -229,6 +231,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       Array.isArray(this.ArrowPowerups) &&
       this.ArrowPowerups.length > 1
     ) {
+      this.powerupSelectSound?.play();
       this.selectNextArrowPowerup();
     }
   }
@@ -535,6 +538,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         xPosBuffer *= -1;
       }
 
+      const currentPowerup = this.getCurrentArrowPowerup();
       const arrow = this.arrows.getFirstDead(
         true,
         this.x + xPosBuffer,
@@ -542,6 +546,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       );
 
       if (arrow) {
+        this.applyArrowPowerupAppearance(arrow, currentPowerup);
         arrow.angle = 0.0;
         arrow.flipX = this.flipX;
         arrow.setActive(true);
@@ -557,10 +562,13 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         arrow.body.setVelocityY(0);
         arrow.body.enable = true;
         this.arrowShootSound?.play();
+        this.consumeArrowPowerupUsage(currentPowerup);
       }
     } else if (key === "player-arrow-fire-up") {
+      const currentPowerup = this.getCurrentArrowPowerup();
       const arrow = this.arrows.getFirstDead(true, this.x, this.y - 2);
       if (arrow) {
+        this.applyArrowPowerupAppearance(arrow, currentPowerup);
         arrow.flipX = false;
         arrow.angle = -90.0;
         arrow.setActive(true);
@@ -576,6 +584,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         arrow.body.setVelocityX(0);
         arrow.body.enable = true;
         this.arrowShootSound?.play();
+        this.consumeArrowPowerupUsage(currentPowerup);
       }
     } else if (key === "player-jump" && this.state === "JUMP") {
       this.jumpAnimFinished = true;
@@ -602,21 +611,31 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       ? playerData.powerups
       : [];
 
-    entries.forEach((value) => {
+    entries.forEach((entry) => {
+      const value = typeof entry === "string" ? entry : entry?.value;
       if (typeof value !== "string" || value.startsWith("HEAL_")) {
         return;
       }
+
+      const def = findPowerupByValue(value);
+      const entryAmount = Number.isFinite(entry?.amount) ? entry.amount : null;
+      const defAmount = Number.isFinite(entryAmount)
+        ? entryAmount
+        : Number.isFinite(def?.amount)
+        ? def.amount
+        : 1;
+
       const existing = list.find((entry) => entry.value === value);
       if (existing) {
-        if (existing.amount !== null) {
-          existing.amount += 1;
+        if (existing.amount !== null && Number.isFinite(defAmount)) {
+          existing.amount += defAmount;
         }
         return;
       }
-      const def = PowerupData.findByValue(value);
+
       list.push({
         value,
-        amount: 1,
+        amount: defAmount,
         frame: def?.frame ?? DEFAULT_ARROW_POWERUP.frame,
       });
     });
@@ -629,11 +648,15 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       this.arrowPowerupIcons.forEach((icon) => icon?.destroy());
     }
     this.arrowPowerupIcons = [];
+    if (Array.isArray(this.arrowPowerupAmountTexts)) {
+      this.arrowPowerupAmountTexts.forEach((text) => text?.destroy());
+    }
+    this.arrowPowerupAmountTexts = [];
 
     const lastBarX = 40 + Math.max(0, this.playerHealth.max - 1) * 5;
     this.arrowPowerupStartX = lastBarX + 20;
-    this.arrowPowerupY = 22;
-    this.arrowPowerupSpacing = 20;
+    this.arrowPowerupY = 16;
+    this.arrowPowerupSpacing = 23;
 
     this.ArrowPowerups.forEach((powerup, index) => {
       const frame =
@@ -649,6 +672,21 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         )
         .setOrigin(0.5);
       this.arrowPowerupIcons.push(icon);
+
+      const amountText = this.scene.add
+        .text(
+          icon.x,
+          this.arrowPowerupY + 10,
+          this.formatArrowAmount(powerup.amount),
+          {
+            fontFamily: "standard",
+            fontSize: "24px",
+            color: "#FFFFFF",
+          }
+        )
+        .setOrigin(0.5, 0)
+        .setScale(1 / (this.scene.zoom || 4));
+      this.arrowPowerupAmountTexts.push(amountText);
     });
 
     this.ensureArrowPowerupHighlight();
@@ -702,6 +740,99 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     const nextIndex = (this.currentArrowPowerupIndex + 1) % total;
     this.currentArrowPowerupIndex = nextIndex;
     this.updateArrowPowerupHighlightPosition();
+  }
+
+  getCurrentArrowPowerup() {
+    if (!Array.isArray(this.ArrowPowerups) || this.ArrowPowerups.length === 0) {
+      return DEFAULT_ARROW_POWERUP;
+    }
+
+    const index = Phaser.Math.Clamp(
+      this.currentArrowPowerupIndex ?? 0,
+      0,
+      this.ArrowPowerups.length - 1
+    );
+    this.currentArrowPowerupIndex = index;
+    return this.ArrowPowerups[index] ?? DEFAULT_ARROW_POWERUP;
+  }
+
+  applyArrowPowerupAppearance(arrow, powerup) {
+    if (!arrow) {
+      return;
+    }
+
+    const value = powerup?.value ?? DEFAULT_ARROW_POWERUP.value;
+    arrow.powerupValue = value;
+    if (value === "ICE_ARROW") {
+      arrow.setTintFill?.(0x0078f8);
+    } else {
+      arrow.clearTint?.();
+    }
+  }
+
+  consumeArrowPowerupUsage(powerup) {
+    if (!powerup || !Number.isFinite(powerup.amount)) {
+      return;
+    }
+
+    powerup.amount = Math.max(0, powerup.amount - 1);
+    this.updateArrowPowerupAmounts();
+    if (powerup.amount > 0) {
+      return;
+    }
+
+    this.handleArrowPowerupDepleted(powerup.value);
+  }
+
+  handleArrowPowerupDepleted(value) {
+    if (!value || value === DEFAULT_ARROW_POWERUP.value) {
+      this.currentArrowPowerupIndex = 0;
+      this.updateArrowPowerupHighlightPosition();
+      return;
+    }
+
+    this.removeArrowPowerup(value);
+  }
+
+  removeArrowPowerup(value) {
+    if (!Array.isArray(this.ArrowPowerups) || this.ArrowPowerups.length === 0) {
+      this.currentArrowPowerupIndex = 0;
+      this.updateArrowPowerupHighlightPosition();
+      return;
+    }
+
+    const targetIndex = this.ArrowPowerups.findIndex(
+      (entry) => entry.value === value
+    );
+    if (targetIndex <= 0) {
+      this.currentArrowPowerupIndex = 0;
+      this.updateArrowPowerupHighlightPosition();
+      return;
+    }
+
+    this.ArrowPowerups.splice(targetIndex, 1);
+    this.currentArrowPowerupIndex = 0;
+    this.renderArrowPowerups();
+  }
+
+  formatArrowAmount(amount) {
+    if (!Number.isFinite(amount)) {
+      return "INF";
+    }
+    return `x${amount}`;
+  }
+
+  updateArrowPowerupAmounts() {
+    if (!Array.isArray(this.arrowPowerupAmountTexts)) {
+      this.arrowPowerupAmountTexts = [];
+    }
+    this.ArrowPowerups.forEach((powerup, index) => {
+      const text = this.arrowPowerupAmountTexts[index];
+      if (!text) {
+        return;
+      }
+      text.setText(this.formatArrowAmount(powerup.amount));
+    });
   }
 
   applyCrouchCollider() {

@@ -1,4 +1,9 @@
 import Phaser from "phaser";
+import {
+  ICE_FREEZE_TINT,
+  ICE_FREEZE_FLASH_TINT,
+  ICE_FREEZE_DURATION,
+} from "../Constants.js";
 
 const STATE_WALK = "WALK";
 const STATE_JUMP = "JUMP";
@@ -38,6 +43,10 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
     );
 
     this.play("slime-walk");
+    this.isFrozen = false;
+    this.freezeTimer = null;
+    this.frozenAllowGravity = this.body?.allowGravity ?? true;
+    this.frozenTweens = null;
   }
 
   preUpdate(time, delta) {
@@ -56,6 +65,10 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
 
     if (this.isHit) {
       this.updateHitEffects();
+    }
+
+    if (this.isFrozen) {
+      return;
     }
 
     switch (this.state) {
@@ -174,19 +187,23 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
   }
 
   endHitState() {
+    this.hitFlashActive = false;
     this.clearHitTimers();
     if (this.health > 0) {
       this.isHit = false;
-      this.clearTint();
+      this.restoreTint();
     }
   }
 
   toggleFlash() {
-    if (this.isTinted) {
-      this.clearTint();
-    } else {
-      this.setTint(0x000000);
+    if (this.hitFlashActive) {
+      this.hitFlashActive = false;
+      this.restoreTint();
+      return;
     }
+    const tintColor = this.isFrozen ? ICE_FREEZE_FLASH_TINT : 0x000000;
+    this.applyTintColor(tintColor);
+    this.hitFlashActive = true;
   }
 
   clearHitTimers() {
@@ -205,19 +222,127 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
+    this.clearFreezeEffects(true);
+    this.hitFlashActive = false;
     this.clearHitTimers();
-    this.clearTint();
+    this.restoreTint();
     this.isHit = false;
     this.scene.smallExplosions?.getFirstDead(true, this.x, this.y);
     this.scene.spawnCoin(this.x, this.y);
     this.destroy();
   }
 
+  freeze(duration = ICE_FREEZE_DURATION) {
+    if (!this.active) {
+      return;
+    }
+
+    if (this.freezeTimer) {
+      this.freezeTimer.remove(false);
+      this.freezeTimer = this.scene.time.delayedCall(
+        duration,
+        this.endFreeze,
+        null,
+        this
+      );
+      return;
+    }
+
+    this.isFrozen = true;
+    if (this.body) {
+      this.frozenAllowGravity = this.body.allowGravity;
+      this.body.setVelocity(0, 0);
+      this.body.setAllowGravity(false);
+    }
+    this.hitFlashActive = false;
+    this.frozenTweens = this.scene.tweens?.getTweensOf(this) ?? [];
+    this.frozenTweens.forEach((tween) => tween.pause());
+    this.applyTintColor(ICE_FREEZE_TINT);
+    this.freezeTimer = this.scene.time.delayedCall(
+      duration,
+      this.endFreeze,
+      null,
+      this
+    );
+  }
+
+  endFreeze() {
+    if (this.freezeTimer) {
+      this.freezeTimer.remove(false);
+      this.freezeTimer = null;
+    }
+    if (!this.isFrozen) {
+      return;
+    }
+    this.isFrozen = false;
+    if (this.body) {
+      const allowGravity =
+        this.frozenAllowGravity !== undefined
+          ? this.frozenAllowGravity
+          : true;
+      this.body.setAllowGravity(allowGravity);
+    }
+    this.frozenAllowGravity = undefined;
+    if (this.frozenTweens) {
+      this.frozenTweens.forEach((tween) => tween.resume());
+      this.frozenTweens = null;
+    }
+    this.hitFlashActive = false;
+    this.clearTint();
+  }
+
+  clearFreezeEffects(forceStopTweens = false) {
+    if (this.freezeTimer) {
+      this.freezeTimer.remove(false);
+      this.freezeTimer = null;
+    }
+    if (!this.isFrozen) {
+      return;
+    }
+    this.isFrozen = false;
+    if (this.body) {
+      const allowGravity =
+        this.frozenAllowGravity !== undefined
+          ? this.frozenAllowGravity
+          : true;
+      this.body.setAllowGravity(allowGravity);
+    }
+    this.frozenAllowGravity = undefined;
+    if (this.frozenTweens) {
+      this.frozenTweens.forEach((tween) => {
+        if (forceStopTweens) {
+          tween.stop();
+        } else {
+          tween.resume();
+        }
+      });
+      this.frozenTweens = null;
+    }
+    this.hitFlashActive = false;
+    this.restoreTint();
+  }
+
   onAnimComplete(animation) {
     if (animation.key === "slime-land" && this.state === STATE_LAND) {
       this.state = STATE_WALK;
-      this.clearTint();
+      this.restoreTint();
       this.anims.play("slime-walk", true);
+    }
+  }
+
+  applyTintColor(color) {
+    if (typeof this.setTintFill === "function") {
+      this.setTintFill(color);
+    } else {
+      this.setTint(color);
+    }
+  }
+
+  restoreTint() {
+    if (this.isFrozen) {
+      this.applyTintColor(ICE_FREEZE_TINT);
+    } else {
+      this.clearTint();
     }
   }
 

@@ -1,4 +1,9 @@
 import Phaser from "phaser";
+import {
+  ICE_FREEZE_TINT,
+  ICE_FREEZE_FLASH_TINT,
+  ICE_FREEZE_DURATION,
+} from "../Constants.js";
 
 export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y) {
@@ -26,6 +31,12 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
     this.maxConsecutiveThrows = 3;
     this.remainingThrows = this.maxConsecutiveThrows;
     this.isHit = false;
+    this.isFrozen = false;
+    this.freezeTimer = null;
+    this.frozenAllowGravity = undefined;
+    this.frozenTweens = null;
+    this.defaultAllowGravity = this.body?.allowGravity ?? true;
+    this.hitFlashActive = false;
     
     this.resetAttackRanges();
     this.currentAttackAtX = 0;
@@ -49,6 +60,10 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
 
     if (this.isHit) {
       this.updateHitEffects();
+    }
+
+    if (this.isFrozen) {
+      return;
     }
 
     switch (this.state) {
@@ -209,21 +224,26 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
   }
 
   flash() {
-    if (this.isTinted) {
-      this.clearTint();
-    } else {
-      this.setTint(0x000000);
+    if (this.hitFlashActive) {
+      this.hitFlashActive = false;
+      this.restoreTint();
+      return;
     }
+    const tintColor = this.isFrozen ? ICE_FREEZE_FLASH_TINT : 0x000000;
+    this.applyTintColor(tintColor);
+    this.hitFlashActive = true;
   }
 
   endHit() {
     this.isHit = false;
     this.clearTimer('flashTimer');
     this.clearTimer('hitTimer');
-    this.clearTint();
+    this.hitFlashActive = false;
+    this.restoreTint();
   }
 
   die() {
+    this.clearFreezeEffects(true);
     this.scene.explosions.getFirstDead(true, this.x - 2, this.y + 3);
     this.scene.spawnCoin(this.x, this.y);
     this.clearTimer('throwAttackTimer');
@@ -305,7 +325,113 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
     this.punchGlideStarted = false;
   }
 
+  freeze(duration = ICE_FREEZE_DURATION) {
+    if (!this.active) {
+      return;
+    }
+
+    if (this.freezeTimer) {
+      this.freezeTimer.remove(false);
+      this.freezeTimer = this.scene.time.delayedCall(
+        duration,
+        this.endFreeze,
+        null,
+        this
+      );
+      return;
+    }
+
+    this.isFrozen = true;
+    if (this.body) {
+      this.frozenAllowGravity = this.body.allowGravity;
+      this.body.setVelocity(0, 0);
+      this.body.setAllowGravity(false);
+    }
+    this.hitFlashActive = false;
+    this.frozenTweens = this.scene.tweens?.getTweensOf(this) ?? [];
+    this.frozenTweens.forEach((tween) => tween.pause());
+    this.applyTintColor(ICE_FREEZE_TINT);
+    this.freezeTimer = this.scene.time.delayedCall(
+      duration,
+      this.endFreeze,
+      null,
+      this
+    );
+  }
+
+  endFreeze() {
+    if (this.freezeTimer) {
+      this.freezeTimer.remove(false);
+      this.freezeTimer = null;
+    }
+    if (!this.isFrozen) {
+      return;
+    }
+    this.isFrozen = false;
+    if (this.body) {
+      const allowGravity =
+        this.frozenAllowGravity !== undefined
+          ? this.frozenAllowGravity
+          : this.defaultAllowGravity;
+      this.body.setAllowGravity(allowGravity);
+    }
+    this.frozenAllowGravity = undefined;
+    if (this.frozenTweens) {
+      this.frozenTweens.forEach((tween) => tween.resume());
+      this.frozenTweens = null;
+    }
+    this.clearTint();
+  }
+
+  clearFreezeEffects(forceStopTweens = false) {
+    if (this.freezeTimer) {
+      this.freezeTimer.remove(false);
+      this.freezeTimer = null;
+    }
+    if (!this.isFrozen) {
+      return;
+    }
+    this.isFrozen = false;
+    if (this.body) {
+      const allowGravity =
+        this.frozenAllowGravity !== undefined
+          ? this.frozenAllowGravity
+          : this.defaultAllowGravity;
+      this.body.setAllowGravity(allowGravity);
+    }
+    this.frozenAllowGravity = undefined;
+    if (this.frozenTweens) {
+      this.frozenTweens.forEach((tween) => {
+        if (forceStopTweens) {
+          tween.stop();
+        } else {
+          tween.resume();
+        }
+      });
+      this.frozenTweens = null;
+    }
+    this.hitFlashActive = false;
+    this.restoreTint();
+  }
+
+  applyTintColor(color) {
+    if (typeof this.setTintFill === "function") {
+      this.setTintFill(color);
+    } else {
+      this.setTint(color);
+    }
+  }
+
+  restoreTint() {
+    if (this.isFrozen) {
+      this.applyTintColor(ICE_FREEZE_TINT);
+    } else {
+      this.clearTint();
+    }
+  }
+
   destroy() {
+    this.clearFreezeEffects(true);
     this.clearTimer('throwAttackTimer');
     this.clearTimer('throwAttackResetTimer');
     this.clearTimer('punchAttackTimer');

@@ -1,11 +1,13 @@
 import Phaser from "phaser";
-import PowerupData from "../data/PowerupData.js";
+import { findPowerupByValue, getAllPowerups } from "../Constants.js";
 
 const BASE_WIDTH = 320;
 const BASE_HEIGHT = 240;
 const ZOOM = 4;
 const DEFAULT_OPTION_COLOR = "#ffffff";
 const HIGHLIGHT_OPTION_COLOR = "#F8B800";
+const DEFAULT_ARROW_POWERUP = { value: "DEFAULT_ARROW", frame: 3, amount: null };
+const POWERUP_HIGHLIGHT_COLOR = 0xf8b800;
 
 export default class ShopKeeperScene extends Phaser.Scene {
   constructor() {
@@ -18,6 +20,14 @@ export default class ShopKeeperScene extends Phaser.Scene {
     this.activeFlashEvent = null;
     this.activeFlashTimer = null;
     this.exitingShop = false;
+    this.ArrowPowerups = [];
+    this.currentArrowPowerupIndex = 0;
+    this.arrowPowerupIcons = [];
+    this.arrowPowerupAmountTexts = [];
+    this.arrowPowerupHighlight = null;
+    this.arrowPowerupStartX = 0;
+    this.arrowPowerupSpacing = 20;
+    this.arrowPowerupY = 22;
   }
 
   init(data = {}) {
@@ -44,7 +54,9 @@ export default class ShopKeeperScene extends Phaser.Scene {
       max: maxHealth,
     };
     const initialPowerups = Array.isArray(data.playerData?.powerups)
-      ? [...data.playerData.powerups]
+      ? data.playerData.powerups.map((entry) =>
+          typeof entry === "object" ? { ...entry } : entry
+        )
       : [];
     this.playerData = {
       coins: this.playerCoins,
@@ -52,6 +64,8 @@ export default class ShopKeeperScene extends Phaser.Scene {
       powerups: initialPowerups,
     };
     this.exitingShop = false;
+    this.ArrowPowerups = this.buildArrowPowerups(this.playerData);
+    this.currentArrowPowerupIndex = 0;
   }
 
   preload() {}
@@ -97,6 +111,7 @@ export default class ShopKeeperScene extends Phaser.Scene {
       .setAlpha(0);
 
     this.renderPlayerStatus();
+    this.renderArrowPowerups();
 
     const messages = [
       "Welcome wanderer.",
@@ -262,7 +277,7 @@ export default class ShopKeeperScene extends Phaser.Scene {
       const iconStartY = panelText.y + panelText.displayHeight + 5;
       const iconSize = 16;
       const spacing = 4;
-      const powerupData = PowerupData.getAll();
+      const powerupData = getAllPowerups();
 
       powerupData.forEach((entry, index) => {
         const y = iconStartY + index * (iconSize + spacing);
@@ -380,6 +395,157 @@ export default class ShopKeeperScene extends Phaser.Scene {
     this.updateHealthDisplay();
   }
 
+  buildArrowPowerups(playerData) {
+    const list = [
+      {
+        value: DEFAULT_ARROW_POWERUP.value,
+        amount: DEFAULT_ARROW_POWERUP.amount,
+        frame: DEFAULT_ARROW_POWERUP.frame,
+      },
+    ];
+
+    const entries = Array.isArray(playerData?.powerups)
+      ? playerData.powerups
+      : [];
+
+    entries.forEach((entry) => {
+      const value = typeof entry === "string" ? entry : entry?.value;
+      if (typeof value !== "string" || value.startsWith("HEAL_")) {
+        return;
+      }
+
+      const def = findPowerupByValue(value);
+      const entryAmount = Number.isFinite(entry?.amount) ? entry.amount : null;
+      const defAmount = Number.isFinite(entryAmount)
+        ? entryAmount
+        : Number.isFinite(def?.amount)
+        ? def.amount
+        : 1;
+
+      const existing = list.find((entry) => entry.value === value);
+      if (existing) {
+        if (existing.amount !== null && Number.isFinite(defAmount)) {
+          existing.amount += defAmount;
+        }
+        return;
+      }
+
+      list.push({
+        value,
+        amount: defAmount,
+        frame: def?.frame ?? DEFAULT_ARROW_POWERUP.frame,
+      });
+    });
+
+    return list;
+  }
+
+  renderArrowPowerups() {
+    if (Array.isArray(this.arrowPowerupIcons)) {
+      this.arrowPowerupIcons.forEach((icon) => icon?.destroy());
+    }
+    this.arrowPowerupIcons = [];
+    if (Array.isArray(this.arrowPowerupAmountTexts)) {
+      this.arrowPowerupAmountTexts.forEach((text) => text?.destroy());
+    }
+    this.arrowPowerupAmountTexts = [];
+
+    const lastBar = this.healthBars[this.healthBars.length - 1];
+    const lastBarX = lastBar?.x ?? 73;
+    this.arrowPowerupStartX = lastBarX + 20;
+    this.arrowPowerupY = 40;
+    this.arrowPowerupSpacing = 23;
+
+    this.ArrowPowerups.forEach((powerup, index) => {
+      const frame =
+        typeof powerup.frame === "number"
+          ? powerup.frame
+          : DEFAULT_ARROW_POWERUP.frame;
+      const icon = this.add
+        .image(
+          this.arrowPowerupStartX + index * this.arrowPowerupSpacing,
+          this.arrowPowerupY,
+          "playerPowerups",
+          frame
+        )
+        .setOrigin(0.5);
+      this.arrowPowerupIcons.push(icon);
+
+      const amountText = this.add
+        .text(
+          icon.x,
+          this.arrowPowerupY + 10,
+          this.formatArrowAmount(powerup.amount),
+          {
+            fontFamily: "standard",
+            fontSize: "24px",
+            color: "#FFFFFF",
+          }
+        )
+        .setOrigin(0.5, 0)
+        .setScale(1 / ZOOM);
+      this.arrowPowerupAmountTexts.push(amountText);
+    });
+
+    this.ensureArrowPowerupHighlight();
+    this.updateArrowPowerupHighlightPosition();
+  }
+
+  ensureArrowPowerupHighlight() {
+    if (this.arrowPowerupHighlight && !this.arrowPowerupHighlight.destroyed) {
+      this.arrowPowerupHighlight.setVisible(true);
+      return;
+    }
+
+    const highlightSize = 16;
+    this.arrowPowerupHighlight = this.add.rectangle(0, 0, highlightSize, highlightSize).setOrigin(0.5);
+    this.arrowPowerupHighlight.setStrokeStyle(1, POWERUP_HIGHLIGHT_COLOR, 1);
+    this.arrowPowerupHighlight.setFillStyle(0xffffff, 0);
+  }
+
+  updateArrowPowerupHighlightPosition() {
+    if (!this.arrowPowerupHighlight) {
+      return;
+    }
+
+    const index = Phaser.Math.Clamp(
+      this.currentArrowPowerupIndex ?? 0,
+      0,
+      Math.max(0, this.arrowPowerupIcons.length - 1)
+    );
+    this.currentArrowPowerupIndex = index;
+
+    const targetIcon = this.arrowPowerupIcons[index];
+    if (!targetIcon) {
+      this.arrowPowerupHighlight.setVisible(false);
+      return;
+    }
+
+    this.arrowPowerupHighlight.setVisible(true);
+    this.arrowPowerupHighlight.setPosition(targetIcon.x, targetIcon.y);
+    this.arrowPowerupHighlight.setDepth((targetIcon.depth ?? 0) + 1);
+  }
+
+  formatArrowAmount(amount) {
+    if (!Number.isFinite(amount)) {
+      return "INF";
+    }
+    return `x${amount}`;
+  }
+
+  updateArrowPowerupAmounts() {
+    if (!Array.isArray(this.arrowPowerupAmountTexts)) {
+      this.arrowPowerupAmountTexts = [];
+    }
+    this.ArrowPowerups.forEach((powerup, index) => {
+      const text = this.arrowPowerupAmountTexts[index];
+      if (!text) {
+        return;
+      }
+      text.setText(this.formatArrowAmount(powerup.amount));
+    });
+  }
+
   handleLeaveSelection() {
     if (this.exitingShop) {
       return;
@@ -466,12 +632,18 @@ export default class ShopKeeperScene extends Phaser.Scene {
       return true;
     }
 
-    if (this.playerData.powerups.includes(value)) {
+    const hasPowerup = this.playerData.powerups.some((entry) =>
+      typeof entry === "string" ? entry === value : entry?.value === value
+    );
+    if (hasPowerup) {
       return false;
     }
 
     spendCoins();
-    this.playerData.powerups.push(value);
+    const amount = Number.isFinite(powerupData.amount) ? powerupData.amount : 1;
+    this.playerData.powerups.push({ value, amount });
+    this.ArrowPowerups = this.buildArrowPowerups(this.playerData);
+    this.renderArrowPowerups();
     return true;
   }
 

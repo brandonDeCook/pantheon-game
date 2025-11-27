@@ -40,7 +40,6 @@ export default class DemonSamurai extends Phaser.Physics.Arcade.Sprite {
     this.jumpInitialDirection = null;
     this.jumpPauseTimer = null;
     this.jumpStartY = null;
-
     this.on(Phaser.Animations.Events.ANIMATION_COMPLETE, this.onAnimComplete, this);
 
     this.anims.play("samurai-demon-walk", true);

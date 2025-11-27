@@ -1,4 +1,9 @@
 import Phaser from "phaser";
+import {
+  ICE_FREEZE_TINT,
+  ICE_FREEZE_FLASH_TINT,
+  ICE_FREEZE_DURATION,
+} from "../Constants.js";
 
 export default class Lizard extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y) {
@@ -25,6 +30,11 @@ export default class Lizard extends Phaser.Physics.Arcade.Sprite {
     this.pendingDirection = null;
 
     this.play("lizard-walk");
+    this.isFrozen = false;
+    this.freezeTimer = null;
+    this.frozenAllowGravity = this.body?.allowGravity ?? true;
+    this.frozenTweens = null;
+    this.hitFlashActive = false;
   }
 
   preUpdate(time, delta) {
@@ -33,6 +43,10 @@ export default class Lizard extends Phaser.Physics.Arcade.Sprite {
 
   update() {
     if (!this.active || !this.body) {
+      return;
+    }
+
+    if (this.isFrozen) {
       return;
     }
 
@@ -89,11 +103,14 @@ export default class Lizard extends Phaser.Physics.Arcade.Sprite {
       delay: 75,
       repeat: 4,
       callback: () => {
-        if (!this.isTinted) {
-          this.setTint(0x000000);
-        } else {
-          this.clearTint();
+        if (this.hitFlashActive) {
+          this.hitFlashActive = false;
+          this.restoreTint();
+          return;
         }
+        const tintColor = this.isFrozen ? ICE_FREEZE_FLASH_TINT : 0x000000;
+        this.applyTintColor(tintColor);
+        this.hitFlashActive = true;
       },
       callbackScope: this,
     });
@@ -104,7 +121,7 @@ export default class Lizard extends Phaser.Physics.Arcade.Sprite {
     this.damageFlashCleanupTimer = this.scene.time.delayedCall(
       totalDuration,
       () => {
-        this.clearTint();
+        this.restoreTint();
         if (this.damageFlashTimer) {
           this.damageFlashTimer.remove(false);
           this.damageFlashTimer = null;
@@ -118,6 +135,7 @@ export default class Lizard extends Phaser.Physics.Arcade.Sprite {
 
   die() {
     if (!this.active) return;
+    this.clearFreezeEffects(true);
     this.clearReacquireTimer();
     this.clearTint();
     this.scene.explosions?.getFirstDead(true, this.x, this.y);
@@ -125,7 +143,113 @@ export default class Lizard extends Phaser.Physics.Arcade.Sprite {
     this.destroy();
   }
 
+  freeze(duration = ICE_FREEZE_DURATION) {
+    if (!this.active) {
+      return;
+    }
+
+    if (this.freezeTimer) {
+      this.freezeTimer.remove(false);
+      this.freezeTimer = this.scene.time.delayedCall(
+        duration,
+        this.endFreeze,
+        null,
+        this
+      );
+      return;
+    }
+
+    this.isFrozen = true;
+    if (this.body) {
+      this.frozenAllowGravity = this.body.allowGravity;
+      this.body.setVelocity(0, 0);
+      this.body.setAllowGravity(false);
+    }
+    this.frozenTweens = this.scene.tweens?.getTweensOf(this) ?? [];
+    this.frozenTweens.forEach((tween) => tween.pause());
+    this.hitFlashActive = false;
+    this.applyTintColor(ICE_FREEZE_TINT);
+    this.freezeTimer = this.scene.time.delayedCall(
+      duration,
+      this.endFreeze,
+      null,
+      this
+    );
+  }
+
+  endFreeze() {
+    if (this.freezeTimer) {
+      this.freezeTimer.remove(false);
+      this.freezeTimer = null;
+    }
+    if (!this.isFrozen) {
+      return;
+    }
+    this.isFrozen = false;
+    if (this.body) {
+      const allowGravity =
+        this.frozenAllowGravity !== undefined
+          ? this.frozenAllowGravity
+          : true;
+      this.body.setAllowGravity(allowGravity);
+    }
+    this.frozenAllowGravity = undefined;
+    if (this.frozenTweens) {
+      this.frozenTweens.forEach((tween) => tween.resume());
+      this.frozenTweens = null;
+    }
+    this.clearTint();
+  }
+
+  clearFreezeEffects(forceStopTweens = false) {
+    if (this.freezeTimer) {
+      this.freezeTimer.remove(false);
+      this.freezeTimer = null;
+    }
+    if (!this.isFrozen) {
+      return;
+    }
+    this.isFrozen = false;
+    if (this.body) {
+      const allowGravity =
+        this.frozenAllowGravity !== undefined
+          ? this.frozenAllowGravity
+          : true;
+      this.body.setAllowGravity(allowGravity);
+    }
+    this.frozenAllowGravity = undefined;
+    if (this.frozenTweens) {
+      this.frozenTweens.forEach((tween) => {
+        if (forceStopTweens) {
+          tween.stop();
+        } else {
+          tween.resume();
+        }
+      });
+      this.frozenTweens = null;
+    }
+    this.hitFlashActive = false;
+    this.restoreTint();
+  }
+
+  applyTintColor(color) {
+    if (typeof this.setTintFill === "function") {
+      this.setTintFill(color);
+    } else {
+      this.setTint(color);
+    }
+  }
+
+  restoreTint() {
+    if (this.isFrozen) {
+      this.applyTintColor(ICE_FREEZE_TINT);
+    } else {
+      this.clearTint();
+    }
+  }
+
   destroy(fromScene) {
+    this.clearFreezeEffects(true);
     this.clearReacquireTimer();
     if (this.damageFlashTimer) {
       this.damageFlashTimer.remove(false);
