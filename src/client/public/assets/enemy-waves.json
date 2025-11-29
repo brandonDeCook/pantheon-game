@@ -2,7 +2,8 @@
   "defaultIntervalMs": 0,
   "waves": [
     {
-      "name": "WAVE 1",
+      "name": "WAVE 1-1",
+      "level": 1,
       "startDelay": 0,
       "spawns": [
         { "type": "slime", "side": "left", "count": 1, "interval": 2500, "startOffset": 0, "y": 150 },
@@ -15,7 +16,8 @@
       ]
     },
     {
-      "name": "WAVE 2",
+      "name": "WAVE 1-2",
+      "level": 2,
       "startDelay": 3000,
       "spawns": [
         { "type": "slime", "side": "left", "count": 2, "interval": 2500, "startOffset": 0, "y": 150 },
@@ -28,7 +30,8 @@
       ]
     },
     {
-      "name": "WAVE 3",
+      "name": "WAVE 1-3",
+      "level": 1,
       "startDelay": 3000,
       "spawns": [
         { "type": "skeleton", "side": "left", "count": 2, "interval": 5000, "startOffset": 0, "y": 150 },
@@ -42,7 +45,8 @@
       ]
     },
     {
-      "name": "WAVE 4",
+      "name": "WAVE 1-4",
+      "level": 1,
       "startDelay": 3000,
       "spawns": [
         { "type": "lizard", "side": "left", "count": 1, "interval": 2200, "startOffset": 0, "y": 150 },
@@ -50,12 +54,17 @@
         { "type": "lizard", "side": "right", "count": 1, "interval": 2200, "startOffset": 11000, "y": 150 },
         { "type": "bat", "side": "right", "count": 2, "interval": 6000, "startOffset": 13000, "y": 80 },
         { "type": "bat", "side": "left", "count": 3, "interval": 6000, "startOffset": 16000, "y": 80 },
-        { "type": "skeleton", "side": "right", "count": 4, "interval": 4500, "startOffset": 12000, "y": 150 },
-        { "type": "skeleton", "side": "left", "count": 3, "interval": 3500, "startOffset": 14000, "y": 150 }
+        { "type": "skeleton", "side": "right", "count": 2, "interval": 4500, "startOffset": 12000, "y": 150 },
+        { "type": "skeleton", "side": "left", "count": 2, "interval": 3500, "startOffset": 14000, "y": 150 },
+        { "type": "slime", "side": "left", "count": 1, "interval": 2500, "startOffset": 26000, "y": 110 },
+        { "type": "slime", "side": "right", "count": 1, "interval": 2500, "startOffset": 26000, "y": 75 },
+        { "type": "skeleton", "side": "right", "count": 1, "interval": 4000, "startOffset": 30000, "y": 150 },
+        { "type": "skeleton", "side": "left", "count": 1, "interval": 4000, "startOffset": 30000, "y": 150 }
       ]
     },
     {
-      "name": "BOSS",
+      "name": "BOSS 1",
+      "level": 1,
       "startDelay": 3000,
       "spawns": [        
         { "type": "demonSamurai", "side": "right", "count": 1, "interval": 0, "startOffset": 3000, "y": 150 }

@@ -26,6 +26,12 @@ export default class GameScene extends Phaser.Scene {
     this.wavesCompleted = 0;
     this.pendingWaveIndex = 0;
     this.playerData = null;
+    this.currentMapKey = null;
+    this.map = null;
+    this.groundLayer = null;
+    this.backgroundLayer = null;
+    this.boundaryWalls = null;
+    this.mapColliders = [];
   }
 
   init(data = {}) {
@@ -72,21 +78,15 @@ export default class GameScene extends Phaser.Scene {
   preload() {}
 
   create() {
-    const map = this.make.tilemap({ key: "level1" });
-    const tileset = map.addTilesetImage("pantheon-tileset", "tiles");
-    const groundLayer = map.createLayer("platforms", tileset, 0, 0);
-    const backgroundLayer = map.createLayer("background", tileset, 0, 0);
-    groundLayer.setCollisionBetween(1, 100);
-    this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
-    const mapW = map.widthInPixels;
-    const mapH = map.heightInPixels;
+    this.waveConfig = this.cache.json.get("enemyWaves") ?? { waves: [] };
+    this.defaultWaveDelay = this.waveConfig.defaultIntervalMs ?? 120000;
     this.zoom = 4;
+    const startWave = this.getValidatedStartWaveIndex(
+      this.waveConfig.waves?.length ?? 0
+    );
+    const mapKey = this.getWaveMapKey(startWave);
 
-    this.cameras.main
-      .setBounds(0, 0, mapW, mapH)
-      .setZoom(this.zoom)
-      .centerOn(mapW / 2, mapH / 2)
-      .setRoundPixels(true);
+    this.setupMap(mapKey);
 
     this.player = new Player(this, 150, 150, 4, this.playerData);
     this.applyPlayerDataToPlayer();
@@ -183,30 +183,8 @@ export default class GameScene extends Phaser.Scene {
       active: false,
       visible: false,
     });
-
-    this.physics.add.collider(this.player, groundLayer);
-    this.physics.add.collider(this.skeletons, groundLayer);
-    this.physics.add.collider(this.bats, groundLayer, this.onBatCollideGround, null, this);
-    this.physics.add.collider(this.slimes, groundLayer);
-    this.physics.add.collider(this.lizards, groundLayer);
-    this.physics.add.collider(this.coins, groundLayer);
+    this.refreshMapColliders();
     this.physics.add.overlap(this.slashes, this.player, this.onSlashOverlapPlayer, null, this);
-    this.physics.add.collider(this.demonSamurai, groundLayer);
-
-    this.boundaryWalls = this.physics.add.staticGroup();
-    const wallThickness = 32;
-    const wallHeight = mapH + 200;
-    const leftWall = this.add.rectangle(-wallThickness / 2, mapH / 2, wallThickness, wallHeight).setOrigin(0.5).setVisible(false);
-    const rightWall = this.add.rectangle(mapW + wallThickness / 2, mapH / 2, wallThickness, wallHeight).setOrigin(0.5).setVisible(false);
-    this.physics.add.existing(leftWall, true);
-    this.physics.add.existing(rightWall, true);
-    this.boundaryWalls.add(leftWall);
-    this.boundaryWalls.add(rightWall);
-
-    this.physics.add.collider(this.boundaryWalls, this.skeletons);
-    this.physics.add.collider(this.boundaryWalls, this.slimes);
-    this.physics.add.collider(this.boundaryWalls, this.lizards);
-    this.physics.add.collider(this.boundaryWalls, this.demonSamurai);
 
     this.physics.add.collider(
       this.player,
@@ -308,8 +286,6 @@ export default class GameScene extends Phaser.Scene {
     this.waveEvents = [];
     this.waveText = null;
     this.waveTextTimer = null;
-    this.waveConfig = this.cache.json.get("enemyWaves") ?? { waves: [] };
-    this.defaultWaveDelay = this.waveConfig.defaultIntervalMs ?? 120000;
     this.currentWaveIndex = 0;
     this.waveInProgress = false;
     this.waveEnemiesRemaining = 0;
@@ -477,6 +453,159 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
+  getWaveMapKey(waveIndex) {
+    const waves = this.waveConfig?.waves;
+    const waveLevel = Number.isInteger(waves?.[waveIndex]?.level)
+      ? waves[waveIndex].level
+      : this.waveConfig?.level;
+    const levelNumber = Number.isInteger(waveLevel) ? waveLevel : 1;
+    return levelNumber === 2 ? "level2" : "level1";
+  }
+
+  setupMap(mapKey) {
+    this.destroyMapColliders();
+    this.cleanupMapLayers();
+
+    const map = this.make.tilemap({ key: mapKey });
+    const tileset = map.addTilesetImage("pantheon-tileset", "tiles");
+    const groundLayer = map.createLayer("platforms", tileset, 0, 0);
+    const backgroundLayer = map.createLayer("background", tileset, 0, 0);
+    groundLayer.setCollisionBetween(1, 100);
+    this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+
+    this.cameras.main
+      .setBounds(0, 0, map.widthInPixels, map.heightInPixels)
+      .setZoom(this.zoom)
+      .centerOn(map.widthInPixels / 2, map.heightInPixels / 2)
+      .setRoundPixels(true);
+
+    const wallThickness = 32;
+    const wallHeight = map.heightInPixels + 200;
+    const boundaryWalls = this.physics.add.staticGroup();
+    const leftWall = this.add
+      .rectangle(
+        -wallThickness / 2,
+        map.heightInPixels / 2,
+        wallThickness,
+        wallHeight
+      )
+      .setOrigin(0.5)
+      .setVisible(false);
+    const rightWall = this.add
+      .rectangle(
+        map.widthInPixels + wallThickness / 2,
+        map.heightInPixels / 2,
+        wallThickness,
+        wallHeight
+      )
+      .setOrigin(0.5)
+      .setVisible(false);
+    this.physics.add.existing(leftWall, true);
+    this.physics.add.existing(rightWall, true);
+    boundaryWalls.add(leftWall);
+    boundaryWalls.add(rightWall);
+
+    this.currentMapKey = mapKey;
+    this.map = map;
+    this.groundLayer = groundLayer;
+    this.backgroundLayer = backgroundLayer;
+    if (this.boundaryWalls) {
+      this.boundaryWalls.clear(true, true);
+      this.boundaryWalls.destroy();
+    }
+    this.boundaryWalls = boundaryWalls;
+    this.recenterPlayerToBounds();
+  }
+
+  cleanupMapLayers() {
+    if (this.boundaryWalls) {
+      this.boundaryWalls.clear(true, true);
+      this.boundaryWalls.destroy();
+      this.boundaryWalls = null;
+    }
+    this.groundLayer?.destroy();
+    this.backgroundLayer?.destroy();
+    this.map?.destroy();
+    this.groundLayer = null;
+    this.backgroundLayer = null;
+    this.map = null;
+  }
+
+  destroyMapColliders() {
+    this.mapColliders.forEach((collider) => collider?.destroy());
+    this.mapColliders = [];
+  }
+
+  refreshMapColliders() {
+    this.destroyMapColliders();
+    if (!this.groundLayer) {
+      return;
+    }
+
+    const colliders = [];
+    if (this.player) {
+      colliders.push(this.physics.add.collider(this.player, this.groundLayer));
+    }
+    if (this.skeletons) {
+      colliders.push(this.physics.add.collider(this.skeletons, this.groundLayer));
+    }
+    if (this.bats) {
+      colliders.push(
+        this.physics.add.collider(
+          this.bats,
+          this.groundLayer,
+          this.onBatCollideGround,
+          null,
+          this
+        )
+      );
+    }
+    if (this.slimes) {
+      colliders.push(this.physics.add.collider(this.slimes, this.groundLayer));
+    }
+    if (this.lizards) {
+      colliders.push(this.physics.add.collider(this.lizards, this.groundLayer));
+    }
+    if (this.coins) {
+      colliders.push(this.physics.add.collider(this.coins, this.groundLayer));
+    }
+    if (this.demonSamurai) {
+      colliders.push(this.physics.add.collider(this.demonSamurai, this.groundLayer));
+    }
+
+    if (this.boundaryWalls) {
+      colliders.push(this.physics.add.collider(this.boundaryWalls, this.skeletons));
+      colliders.push(this.physics.add.collider(this.boundaryWalls, this.slimes));
+      colliders.push(this.physics.add.collider(this.boundaryWalls, this.lizards));
+      colliders.push(this.physics.add.collider(this.boundaryWalls, this.demonSamurai));
+    }
+
+    this.mapColliders = colliders;
+  }
+
+  ensureMap(mapKey) {
+    if (!mapKey || this.currentMapKey === mapKey) {
+      return;
+    }
+    this.setupMap(mapKey);
+    this.refreshMapColliders();
+  }
+
+  ensureMapForWave(waveIndex) {
+    const mapKey = this.getWaveMapKey(waveIndex);
+    this.ensureMap(mapKey);
+  }
+
+  recenterPlayerToBounds() {
+    if (!this.player || !this.physics?.world?.bounds) {
+      return;
+    }
+    const bounds = this.physics.world.bounds;
+    const clampedX = Phaser.Math.Clamp(this.player.x, bounds.x + 16, bounds.width - 16);
+    const clampedY = Phaser.Math.Clamp(this.player.y, bounds.y + 16, bounds.height - 16);
+    this.player.setPosition(clampedX, clampedY);
+  }
+
   scheduleEnemyWaves() {
     const waves = this.waveConfig.waves;
     if (!waves || !waves.length) {
@@ -507,6 +636,7 @@ export default class GameScene extends Phaser.Scene {
     const wave = this.waveConfig.waves[index];
     if (!wave) return;
 
+    this.ensureMapForWave(index);
     this.currentWaveIndex = index;
     this.pendingWaveIndex = index;
     this.waveInProgress = true;
@@ -707,7 +837,7 @@ export default class GameScene extends Phaser.Scene {
       return false;
     }
 
-    return this.wavesCompleted % 3 === 0;
+    return this.wavesCompleted % 3 === 0 || this.wavesCompleted % 5 === 0;
   }
 
   triggerShopVisit(nextIndex) {

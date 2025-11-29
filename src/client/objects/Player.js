@@ -7,6 +7,7 @@ const DEFAULT_ARROW_POWERUP = {
   amount: null,
 };
 const POWERUP_HIGHLIGHT_COLOR = 0xf8b800;
+const HUD_DEPTH = 10000;
 
 export default class Player extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, zoom, playerData = null) {
@@ -49,7 +50,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.playerHealth = { current: 5, max: 5, bars: [] };
     for (var index = 0; index < this.playerHealth.max; index++) {
       this.playerHealth.bars.push(
-        scene.add.sprite(40 + index * 5, 26, "healthBar")
+        scene.add.sprite(40 + index * 5, 26, "healthBar").setDepth(HUD_DEPTH)
       );
     }
 
@@ -78,7 +79,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         color: "#FFFFFF",
 
       })
-      .setScale(1 / zoom);
+      .setScale(1 / zoom)
+      .setDepth(HUD_DEPTH);
 
     this.coinText = scene.add
       .text(260, 24, "COINS:0", {
@@ -86,7 +88,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         fontSize: "24px",
         color: "#FFFFFF",
       })
-      .setScale(1 / zoom);
+      .setScale(1 / zoom)
+      .setDepth(HUD_DEPTH);
 
     this.arrows = scene.physics.add.group({
       defaultKey: "arrow",
@@ -670,7 +673,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
           "playerPowerups",
           frame
         )
-        .setOrigin(0.5);
+        .setOrigin(0.5)
+        .setDepth(HUD_DEPTH);
       this.arrowPowerupIcons.push(icon);
 
       const amountText = this.scene.add
@@ -685,7 +689,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
           }
         )
         .setOrigin(0.5, 0)
-        .setScale(1 / (this.scene.zoom || 4));
+        .setScale(1 / (this.scene.zoom || 4))
+        .setDepth(HUD_DEPTH);
       this.arrowPowerupAmountTexts.push(amountText);
     });
 
@@ -702,7 +707,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     const highlightSize = 16;
     this.arrowPowerupHighlight = this.scene.add
       .rectangle(0, 0, highlightSize, highlightSize)
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setDepth(HUD_DEPTH + 1);
     this.arrowPowerupHighlight.setStrokeStyle(1, POWERUP_HIGHLIGHT_COLOR, 1);
     this.arrowPowerupHighlight.setFillStyle(0xffffff, 0);
   }

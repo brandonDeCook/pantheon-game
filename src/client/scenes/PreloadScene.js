@@ -104,6 +104,7 @@ export default class PreloadScene extends Phaser.Scene {
     this.load.image("arrow", "/assets/gamejam50-pantheon-projectile-arrow.png");
     this.load.image("title", "/assets/pantheon-title-screen.png");
     this.load.tilemapTiledJSON("level1", "/assets/pantheon-level1.json");
+    this.load.tilemapTiledJSON("level2", "/assets/pantheon-level2.json");
     this.load.image("tiles", "/assets/pantheon-tileset.png");
     this.load.audio("menuMove", "/assets/pantheon-menu-move.wav");
     this.load.audio("menuSelect", "/assets/pantheon-menu-select.wav");
