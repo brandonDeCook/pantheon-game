@@ -18,7 +18,8 @@ export default class ControlsScene extends Phaser.Scene {
       "JUMP LEFT: UP ARROW + LEFT ARROW + X",
       "JUMP RIGHT: UP ARROW + RIGHT ARROW + X",
       "PAUSE: ENTER",
-      "SHIFT: CHANGE WEAPON (IF AVAILABLE)"
+      "SHIFT: CHANGE WEAPON (IF AVAILABLE)",
+      "SPECIAL ATTACK: S (WHEN METER FULL)",
     ];
 
 
