@@ -86,6 +86,7 @@ export default class Lizard extends Phaser.Physics.Arcade.Sprite {
 
   takeDamage(amount = 1) {
     if (!this.active) return;
+    this.scene.sound.play("hit");
     this.health = Math.max(0, this.health - amount);
     this.startDamageFlash();
 
@@ -138,6 +139,7 @@ export default class Lizard extends Phaser.Physics.Arcade.Sprite {
     this.clearFreezeEffects(true);
     this.clearReacquireTimer();
     this.clearTint();
+    this.scene.player?.addSpecialCharge?.(10);
     this.scene.explosions?.getFirstDead(true, this.x, this.y);
     this.scene.spawnCoin(this.x, this.y);
     this.destroy();

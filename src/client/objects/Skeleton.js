@@ -244,6 +244,7 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
 
   die() {
     this.clearFreezeEffects(true);
+    this.scene.player?.addSpecialCharge?.(10);
     this.scene.explosions.getFirstDead(true, this.x - 2, this.y + 3);
     this.scene.spawnCoin(this.x, this.y);
     this.clearTimer('throwAttackTimer');

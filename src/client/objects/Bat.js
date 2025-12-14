@@ -87,6 +87,7 @@ export default class Bat extends Phaser.Physics.Arcade.Sprite {
 
   takeDamage(amount = 1) {
     if (!this.active || this.state === "HIT") return;
+    this.scene.sound.play("hit");
     this.health -= amount;
     if (this.health <= 0) {
       this.die();
@@ -99,6 +100,7 @@ export default class Bat extends Phaser.Physics.Arcade.Sprite {
     if (!this.active) return;
     this.clearFreezeEffects(true);
     this.diving = false;
+    this.scene.player?.addSpecialCharge?.(10);
     this.scene.smallExplosions?.getFirstDead(true, this.x, this.y);
     this.scene.spawnCoin(this.x, this.y);
     this.destroy();
@@ -232,7 +234,7 @@ export default class Bat extends Phaser.Physics.Arcade.Sprite {
           this.restoreTint();
           return;
         }
-        const tintColor = this.isFrozen ? ICE_FREEZE_FLASH_TINT : 0xff0000;
+        const tintColor = this.isFrozen ? ICE_FREEZE_FLASH_TINT : 0xffffff;
         this.applyTintColor(tintColor);
         this.hitFlashActive = true;
       },

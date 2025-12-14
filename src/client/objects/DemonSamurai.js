@@ -153,6 +153,7 @@ export default class DemonSamurai extends Phaser.Physics.Arcade.Sprite {
     this.jumpInitialDirection = null;
     this.jumpStartY = null;
     this.body?.setAllowGravity(true);
+    this.scene.player?.addSpecialCharge?.(10);
 
     const offsets = [-10, 10];
     offsets.forEach((offset) => {
@@ -454,7 +455,7 @@ export default class DemonSamurai extends Phaser.Physics.Arcade.Sprite {
     if (!this.scene?.slashes) return;
 
     const baseY = this.body ? this.body.bottom - 4 : this.y + 10;
-    const lifespan = 250;
+    const lifespan = 300;
     const speed = 220;
 
     [-1, 1].forEach((direction) => {

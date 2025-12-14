@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { findPowerupByValue } from "../Constants.js";
+import PlayerSpecialLaser from "./PlayerSpecialLaser.js";
 
 const DEFAULT_ARROW_POWERUP = {
   value: "DEFAULT_ARROW",
@@ -7,6 +8,8 @@ const DEFAULT_ARROW_POWERUP = {
   amount: null,
 };
 const POWERUP_HIGHLIGHT_COLOR = 0xf8b800;
+const SPECIAL_BAR_OUTLINE_COLOR = 0xfcfcfc;
+const SPECIAL_BAR_FILL_COLOR = 0xf8b800;
 const HUD_DEPTH = 10000;
 
 export default class Player extends Phaser.Physics.Arcade.Sprite {
@@ -15,6 +18,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
     scene.add.existing(this);
     scene.physics.add.existing(this);
+    this.uiScale = 1 / zoom;
 
     this.defaultBodySize = { width: 4, height: 22, offsetX: 7, offsetY: 10 };
     this.crouchBodySize = { width: 4, height: 15, offsetX: 7, offsetY: 17 };
@@ -25,6 +29,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.cursors = scene.input.keyboard.createCursorKeys();
     this.zkey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
     this.xkey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
+    this.skey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
     this.facingRight = true;
     this.lastFired = 0;
     this.fireRate = 5000;
@@ -41,10 +46,14 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.jumpAnimFinished = false;
     this.jumpHoldFrame = null;
     this.jumpAnimationsEnsured = false;
+    this.specialFiring = false;
+    this.specialLaser = new PlayerSpecialLaser(scene);
+    this.ensureSpecialAnimations();
     this.play("player-idle");
     this.setCollideWorldBounds(true);
     this.arrowShootSound = scene.sound.add("arrowShoot");
     this.powerupSelectSound = scene.sound.add("powerupSelect");
+    this.specialBlastSound = scene.sound.add("playerSpecialBlast");
     this.setDepth(9001);
 
     this.playerHealth = { current: 5, max: 5, bars: [] };
@@ -63,6 +72,14 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.arrowPowerupSpacing = 20;
     this.arrowPowerupY = 22;
     this.renderArrowPowerups();
+    this.specialCharge = 0;
+    this.specialBar = null;
+    this.specialBarFill = null;
+    this.specialBarFlashTimer = null;
+    this.specialBarWidth = 40;
+    this.specialBarHeight = 6;
+    this.specialChargePerKill = 10;
+    this.initSpecialBar();
     this.shiftKey = scene.input.keyboard.addKey(
       Phaser.Input.Keyboard.KeyCodes.SHIFT
     );
@@ -104,6 +121,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   update(time, delta) {
     const { left, right, up, down } = this.cursors;
     const xJustPressed = Phaser.Input.Keyboard.JustDown(this.xkey);
+    const sJustPressed = Phaser.Input.Keyboard.JustDown(this.skey);
     const upJustPressed = Phaser.Input.Keyboard.JustDown(up);
     const onGround = this.isOnGround();
     if (this.coinText) {
@@ -113,6 +131,18 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     if (this.state === "DEAD") {
       if (this.body) {
         this.body.setVelocity(0, 0);
+      }
+      return;
+    }
+
+    if (sJustPressed) {
+      this.fireSpecialLaser();
+    }
+
+    if (this.specialFiring) {
+      if (this.body) {
+        this.body.setVelocityX(0);
+        this.body.setAccelerationX?.(0);
       }
       return;
     }
@@ -425,7 +455,12 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   hit() {
-    if (this.state === "DEAD" || this.state === "ROLL" || this.state === "HIT") {
+    if (
+      this.state === "DEAD" ||
+      this.state === "ROLL" ||
+      this.state === "HIT" ||
+      this.specialFiring
+    ) {
       return false;
     }
 
@@ -855,5 +890,160 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     }
     this.body.setSize(this.defaultBodySize.width, this.defaultBodySize.height, false);
     this.body.setOffset(this.defaultBodySize.offsetX, this.defaultBodySize.offsetY);
+  }
+
+  handleSpecialFiringMovement(left, right) {
+    if (!this.body) return;
+    const movingRight = right.isDown && !left.isDown;
+    const movingLeft = left.isDown && !right.isDown;
+    if (movingRight) {
+      this.resetColliderSize();
+      this.facingRight = true;
+      this.flipX = false;
+      this.body.setVelocityX(this.speed);
+    } else if (movingLeft) {
+      this.resetColliderSize();
+      this.facingRight = false;
+      this.flipX = true;
+      this.body.setVelocityX(-this.speed);
+    } else {
+      this.body.setVelocityX(0);
+    }
+  }
+
+  initSpecialBar() {
+    const barX = 180;
+    const barY = 24;
+    this.specialBar = this.scene.add
+      .rectangle(barX, barY, this.specialBarWidth + 4, this.specialBarHeight + 4)
+      .setOrigin(0.5, 0.5)
+      .setStrokeStyle(2, SPECIAL_BAR_OUTLINE_COLOR, 1)
+      .setDepth(HUD_DEPTH);
+
+    this.specialBarFill = this.scene.add
+      .rectangle(
+        barX - this.specialBarWidth * 0.5,
+        barY,
+        this.specialBarWidth,
+        this.specialBarHeight,
+        SPECIAL_BAR_FILL_COLOR
+      )
+      .setOrigin(0, 0.5)
+      .setDepth(HUD_DEPTH);
+    this.updateSpecialBar();
+  }
+
+  setSpecialCharge(value) {
+    this.specialCharge = Phaser.Math.Clamp(value, 0, 100);
+    this.updateSpecialBar();
+  }
+
+  addSpecialCharge(percent) {
+    const increment = Math.random() < 0.65 ? 5 : 10;
+    const wasFull = this.specialCharge >= 100;
+    this.setSpecialCharge(this.specialCharge + increment);
+    if (this.specialCharge >= 100 && !wasFull) {
+      this.startSpecialBarFlash();
+    } else if (this.specialCharge < 100) {
+      this.stopSpecialBarFlash();
+    }
+  }
+
+  updateSpecialBar() {
+    if (!this.specialBarFill) return;
+    const ratio = Phaser.Math.Clamp(this.specialCharge / 100, 0, 1);
+    const width = this.specialBarWidth * ratio;
+    this.specialBarFill.setDisplaySize(width, this.specialBarHeight);
+    this.specialBarFill.setVisible(width > 0);
+    if (this.specialCharge < 100) {
+      this.stopSpecialBarFlash();
+    } else {
+      this.startSpecialBarFlash();
+    }
+  }
+
+  startSpecialBarFlash() {
+    if (this.specialBarFlashTimer) {
+      return;
+    }
+    let toggle = false;
+    this.specialBarFlashTimer = this.scene.time.addEvent({
+      delay: 120,
+      loop: true,
+      callback: () => {
+        toggle = !toggle;
+        const color = toggle ? SPECIAL_BAR_OUTLINE_COLOR : SPECIAL_BAR_FILL_COLOR;
+        this.specialBarFill.setFillStyle(color);
+      },
+    });
+  }
+
+  stopSpecialBarFlash() {
+    if (this.specialBarFlashTimer) {
+      this.specialBarFlashTimer.remove(false);
+      this.specialBarFlashTimer = null;
+    }
+    if (this.specialBarFill) {
+      this.specialBarFill.setFillStyle(SPECIAL_BAR_FILL_COLOR);
+    }
+  }
+
+  isSpecialReady() {
+    return this.specialCharge >= 100;
+  }
+
+  ensureSpecialAnimations() {
+    if (!this.scene) return;
+    const anims = this.scene.anims;
+    if (!anims.exists("player-special-charge")) {
+      anims.create({
+        key: "player-special-charge",
+        frames: [{ key: "player", frame: 4 }],
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+
+    if (!anims.exists("player-special-fire")) {
+      anims.create({
+        key: "player-special-fire",
+        frames: [{ key: "player", frame: 5 }],
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+  }
+
+  fireSpecialLaser() {
+    if (!this.active || this.state === "DEAD" || this.specialFiring || !this.isSpecialReady()) {
+      return;
+    }
+
+    const facingRight = this.facingRight;
+    const offsetX = facingRight ? 10 : -10;
+    const laserX = this.x + offsetX;
+    const laserY = this.y - 2;
+
+    this.specialFiring = true;
+    this.body?.setVelocityX(0);
+    this.specialBlastSound?.stop();
+    this.specialBlastSound?.play();
+    this.play("player-special-charge", true);
+    this.specialLaser.fire({
+      x: laserX,
+      y: laserY,
+      facingRight,
+      middleRepeats: 20,
+      durationMs: 800,
+      onActivate: () => {
+        this.play("player-special-fire", true);
+      },
+      onComplete: () => {
+        this.specialFiring = false;
+        this.play("player-idle", true);
+        this.setSpecialCharge(0);
+        this.stopSpecialBarFlash();
+      },
+    });
   }
 }

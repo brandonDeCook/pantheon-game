@@ -35,6 +35,14 @@ export default class GameScene extends Phaser.Scene {
   }
 
   init(data = {}) {
+    // Reset map references in case the scene is restarted (e.g., after the shop)
+    this.currentMapKey = null;
+    this.map = null;
+    this.groundLayer = null;
+    this.backgroundLayer = null;
+    this.boundaryWalls = null;
+    this.mapColliders = [];
+
     if (typeof data.playerCoins === "number") {
       this.playerCoins = data.playerCoins;
     } else {
@@ -282,6 +290,46 @@ export default class GameScene extends Phaser.Scene {
       this
     );
 
+    this.physics.add.overlap(
+      this.player.specialLaser.hitbox,
+      this.skeletons,
+      this.onLaserOverlapSkeleton,
+      null,
+      this
+    );
+
+    this.physics.add.overlap(
+      this.player.specialLaser.hitbox,
+      this.bats,
+      this.onLaserOverlapBat,
+      null,
+      this
+    );
+
+    this.physics.add.overlap(
+      this.player.specialLaser.hitbox,
+      this.lizards,
+      this.onLaserOverlapLizard,
+      null,
+      this
+    );
+
+    this.physics.add.overlap(
+      this.player.specialLaser.hitbox,
+      this.slimes,
+      this.onLaserOverlapSlime,
+      null,
+      this
+    );
+
+    this.physics.add.overlap(
+      this.player.specialLaser.hitbox,
+      this.demonSamurai,
+      this.onLaserOverlapDemon,
+      null,
+      this
+    );
+
     this.spawnPadding = -2;
     this.waveEvents = [];
     this.waveText = null;
@@ -290,6 +338,7 @@ export default class GameScene extends Phaser.Scene {
     this.waveInProgress = false;
     this.waveEnemiesRemaining = 0;
     this.scheduleEnemyWaves();
+    this.laserDamageCooldowns = new WeakMap();
 
     this.pauseSound = this.sound.add("pause");
 
@@ -411,6 +460,43 @@ export default class GameScene extends Phaser.Scene {
     demon.takeDamage(1);
   }
 
+  canDamageWithLaser(target) {
+    if (!target) return false;
+    const now = this.time.now;
+    const last = this.laserDamageCooldowns.get(target) ?? -Infinity;
+    const cooldownMs = 150;
+    if (now - last < cooldownMs) {
+      return false;
+    }
+    this.laserDamageCooldowns.set(target, now);
+    return true;
+  }
+
+  onLaserOverlapSkeleton(laser, skeleton) {
+    if (!skeleton.active || !this.canDamageWithLaser(skeleton)) return;
+    skeleton.hit();
+  }
+
+  onLaserOverlapBat(laser, bat) {
+    if (!bat.active || !this.canDamageWithLaser(bat)) return;
+    bat.takeDamage(1);
+  }
+
+  onLaserOverlapLizard(laser, lizard) {
+    if (!lizard.active || !this.canDamageWithLaser(lizard)) return;
+    lizard.takeDamage(1);
+  }
+
+  onLaserOverlapSlime(laser, slime) {
+    if (!slime.active || !this.canDamageWithLaser(slime)) return;
+    slime.hit();
+  }
+
+  onLaserOverlapDemon(laser, demon) {
+    if (!demon.active || !this.canDamageWithLaser(demon)) return;
+    demon.takeDamage(1);
+  }
+
   onSlashOverlapPlayer(player, slash) {
     if (!player.active || !slash.active) return;
     const playerWasHit = player.hit();
@@ -518,9 +604,12 @@ export default class GameScene extends Phaser.Scene {
   }
 
   cleanupMapLayers() {
-    if (this.boundaryWalls) {
-      this.boundaryWalls.clear(true, true);
-      this.boundaryWalls.destroy();
+    const walls = this.boundaryWalls;
+    if (walls) {
+      if (walls.children?.size !== undefined) {
+        walls.clear(true, true);
+      }
+      walls.destroy?.();
       this.boundaryWalls = null;
     }
     this.groundLayer?.destroy();

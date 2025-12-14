@@ -227,6 +227,7 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
     this.clearHitTimers();
     this.restoreTint();
     this.isHit = false;
+    this.scene.player?.addSpecialCharge?.(10);
     this.scene.smallExplosions?.getFirstDead(true, this.x, this.y);
     this.scene.spawnCoin(this.x, this.y);
     this.destroy();
