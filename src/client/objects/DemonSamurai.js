@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { playSoundWithDetune } from "../utils/sound.js";
 
 export default class DemonSamurai extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y) {
@@ -40,6 +41,7 @@ export default class DemonSamurai extends Phaser.Physics.Arcade.Sprite {
     this.jumpInitialDirection = null;
     this.jumpPauseTimer = null;
     this.jumpStartY = null;
+    this.lastHitDetune = null;
     this.on(Phaser.Animations.Events.ANIMATION_COMPLETE, this.onAnimComplete, this);
 
     this.anims.play("samurai-demon-walk", true);
@@ -105,7 +107,9 @@ export default class DemonSamurai extends Phaser.Physics.Arcade.Sprite {
   takeDamage(amount = 1) {
     if (!this.active) return;
     this.health = Math.max(0, this.health - amount);
-    this.scene.sound.play("hit");
+    this.lastHitDetune = playSoundWithDetune(this.scene, "hit", {
+      lastDetune: this.lastHitDetune,
+    });
     this.startDamageFlash();
 
     if (this.health <= 0) {

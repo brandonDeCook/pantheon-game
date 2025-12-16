@@ -341,6 +341,7 @@ export default class GameScene extends Phaser.Scene {
     this.laserDamageCooldowns = new WeakMap();
 
     this.pauseSound = this.sound.add("pause");
+    this.input.setDefaultCursor("none");
 
     this.boundHandleGlobalKeyDown = this.handleGlobalKeyDown.bind(this);
     this.input.keyboard.on("keydown", this.boundHandleGlobalKeyDown);
@@ -348,6 +349,7 @@ export default class GameScene extends Phaser.Scene {
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.cleanupWaveEvents, this);
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.cleanupGameOverUI, this);
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.cleanupInputListeners, this);
+    this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.restoreCursor, this);
   }
 
   update(time, delta) {
@@ -1187,6 +1189,10 @@ export default class GameScene extends Phaser.Scene {
       this.input.keyboard.off("keydown", this.boundHandleGlobalKeyDown);
       this.boundHandleGlobalKeyDown = null;
     }
+  }
+
+  restoreCursor() {
+    this.input?.setDefaultCursor?.("url('/assets/cursors/standard.png'), pointer");
   }
 
   showPauseIndicator() {

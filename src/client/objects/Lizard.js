@@ -4,6 +4,7 @@ import {
   ICE_FREEZE_FLASH_TINT,
   ICE_FREEZE_DURATION,
 } from "../Constants.js";
+import { playSoundWithDetune } from "../utils/sound.js";
 
 export default class Lizard extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y) {
@@ -28,6 +29,7 @@ export default class Lizard extends Phaser.Physics.Arcade.Sprite {
     const initialDelta = this.player ? Math.sign(this.player.x - x) : 1;
     this.currentDirection = initialDelta === 0 ? 1 : initialDelta;
     this.pendingDirection = null;
+    this.lastHitDetune = null;
 
     this.play("lizard-walk");
     this.isFrozen = false;
@@ -86,7 +88,9 @@ export default class Lizard extends Phaser.Physics.Arcade.Sprite {
 
   takeDamage(amount = 1) {
     if (!this.active) return;
-    this.scene.sound.play("hit");
+    this.lastHitDetune = playSoundWithDetune(this.scene, "hit", {
+      lastDetune: this.lastHitDetune,
+    });
     this.health = Math.max(0, this.health - amount);
     this.startDamageFlash();
 

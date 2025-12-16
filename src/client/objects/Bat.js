@@ -4,6 +4,7 @@ import {
   ICE_FREEZE_FLASH_TINT,
   ICE_FREEZE_DURATION,
 } from "../Constants.js";
+import { playSoundWithDetune } from "../utils/sound.js";
 
 export default class Bat extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y) {
@@ -33,7 +34,9 @@ export default class Bat extends Phaser.Physics.Arcade.Sprite {
     this.freezeTimer = null;
     this.frozenAllowGravity = this.body?.allowGravity ?? false;
     this.frozenTweens = null;
+    this.lastHitDetune = null;
     this.hitFlashActive = false;
+    this.lastHitDetune = null;
 
     this.enterFlyState();
   }
@@ -87,7 +90,9 @@ export default class Bat extends Phaser.Physics.Arcade.Sprite {
 
   takeDamage(amount = 1) {
     if (!this.active || this.state === "HIT") return;
-    this.scene.sound.play("hit");
+    this.lastHitDetune = playSoundWithDetune(this.scene, "hit", {
+      lastDetune: this.lastHitDetune,
+    });
     this.health -= amount;
     if (this.health <= 0) {
       this.die();

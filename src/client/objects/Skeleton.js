@@ -4,6 +4,7 @@ import {
   ICE_FREEZE_FLASH_TINT,
   ICE_FREEZE_DURATION,
 } from "../Constants.js";
+import { playSoundWithDetune } from "../utils/sound.js";
 
 export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y) {
@@ -37,6 +38,7 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
     this.frozenTweens = null;
     this.defaultAllowGravity = this.body?.allowGravity ?? true;
     this.hitFlashActive = false;
+    this.lastHitDetune = null;
     
     this.resetAttackRanges();
     this.currentAttackAtX = 0;
@@ -167,7 +169,7 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    this.scene.sound.play("hit");
+    this.playHitSoundWithDetune();
     this.health = Math.max(0, this.health - 1);
 
     if (this.health <= 0) {
@@ -180,6 +182,12 @@ export default class Skeleton extends Phaser.Physics.Arcade.Sprite {
     this.cancelPunchGlide();
     this.clearTimer("hitTimer");
     this.clearTimer("flashTimer");
+  }
+
+  playHitSoundWithDetune() {
+    this.lastHitDetune = playSoundWithDetune(this.scene, "hit", {
+      lastDetune: this.lastHitDetune,
+    });
   }
 
   determineDirection() {

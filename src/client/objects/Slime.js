@@ -4,6 +4,7 @@ import {
   ICE_FREEZE_FLASH_TINT,
   ICE_FREEZE_DURATION,
 } from "../Constants.js";
+import { playSoundWithDetune } from "../utils/sound.js";
 
 const STATE_WALK = "WALK";
 const STATE_JUMP = "JUMP";
@@ -35,6 +36,7 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
     this.jumpCooldown = 1000;
     this.nextJumpTime = 0;
     this.jumpDirection = 0;
+    this.lastHitDetune = null;
 
     this.on(
       Phaser.Animations.Events.ANIMATION_COMPLETE,
@@ -151,7 +153,9 @@ export default class Slime extends Phaser.Physics.Arcade.Sprite {
     }
 
     this.health = Math.max(0, this.health - 1);
-    this.scene.sound.play("hit");
+    this.lastHitDetune = playSoundWithDetune(this.scene, "hit", {
+      lastDetune: this.lastHitDetune,
+    });
     this.jumpDirection = 0;
     this.isHit = true;
 

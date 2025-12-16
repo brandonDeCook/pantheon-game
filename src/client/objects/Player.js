@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { findPowerupByValue } from "../Constants.js";
+import { playSoundWithDetune } from "../utils/sound.js";
 import PlayerSpecialLaser from "./PlayerSpecialLaser.js";
 
 const DEFAULT_ARROW_POWERUP = {
@@ -54,6 +55,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.arrowShootSound = scene.sound.add("arrowShoot");
     this.powerupSelectSound = scene.sound.add("powerupSelect");
     this.specialBlastSound = scene.sound.add("playerSpecialBlast");
+    this.lastArrowDetune = null;
     this.setDepth(9001);
 
     this.playerHealth = { current: 5, max: 5, bars: [] };
@@ -599,7 +601,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         arrow.body.setVelocityX(velocity);
         arrow.body.setVelocityY(0);
         arrow.body.enable = true;
-        this.arrowShootSound?.play();
+        this.playArrowShootSound();
         this.consumeArrowPowerupUsage(currentPowerup);
       }
     } else if (key === "player-arrow-fire-up") {
@@ -621,7 +623,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         arrow.body.setVelocityY(-velocityBase);
         arrow.body.setVelocityX(0);
         arrow.body.enable = true;
-        this.arrowShootSound?.play();
+        this.playArrowShootSound();
         this.consumeArrowPowerupUsage(currentPowerup);
       }
     } else if (key === "player-jump" && this.state === "JUMP") {
@@ -892,6 +894,12 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.body.setOffset(this.defaultBodySize.offsetX, this.defaultBodySize.offsetY);
   }
 
+  playArrowShootSound() {
+    this.lastArrowDetune = playSoundWithDetune(this.scene, "arrowShoot", {
+      lastDetune: this.lastArrowDetune,
+    });
+  }
+
   handleSpecialFiringMovement(left, right) {
     if (!this.body) return;
     const movingRight = right.isDown && !left.isDown;
@@ -1015,7 +1023,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   fireSpecialLaser() {
-    if (!this.active || this.state === "DEAD" || this.specialFiring || !this.isSpecialReady()) {
+    if (!this.active || this.state === "DEAD" || this.specialFiring){// || !this.isSpecialReady()) {
       return;
     }
 
