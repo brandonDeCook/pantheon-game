@@ -472,6 +472,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     this.scene.sound.play("playerHit");
+    this.scene?.triggerHitFreeze?.();
     this.playerHealth.current = Math.max(0, this.playerHealth.current - 1);
 
     for (

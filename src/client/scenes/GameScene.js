@@ -32,6 +32,8 @@ export default class GameScene extends Phaser.Scene {
     this.backgroundLayer = null;
     this.boundaryWalls = null;
     this.mapColliders = [];
+    this.isHitFreezeActive = false;
+    this.hitFreezeTimeout = null;
   }
 
   init(data = {}) {
@@ -350,11 +352,14 @@ export default class GameScene extends Phaser.Scene {
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.cleanupGameOverUI, this);
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.cleanupInputListeners, this);
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.restoreCursor, this);
+    this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.cleanupHitFreeze, this);
+
+    this.updateGlobalTimeScale();
   }
 
   update(time, delta) {
     this.updatePauseIndicator(delta);
-    if (this.isPaused) {
+    if (this.isPaused || this.isHitFreezeActive) {
       return;
     }
 
@@ -1165,17 +1170,55 @@ export default class GameScene extends Phaser.Scene {
     this.pauseSound?.play();
   }
 
+  updateGlobalTimeScale() {
+    const scale = this.isPaused || this.isHitFreezeActive ? 0 : 1;
+    if (this.time) {
+      this.time.timeScale = scale;
+    }
+    if (this.anims) {
+      this.anims.globalTimeScale = scale;
+    }
+    if (this.physics?.world) {
+      this.physics.world.timeScale = scale;
+      this.physics.world.isPaused = scale === 0;
+    }
+    if (this.tweens) {
+      this.tweens.timeScale = scale;
+    }
+  }
+
+  triggerHitFreeze() {
+    const slowmoDurationMs = 200;
+
+    this.isHitFreezeActive = true;
+    this.updateGlobalTimeScale();
+
+    if (this.hitFreezeTimeout) {
+      clearTimeout(this.hitFreezeTimeout);
+    }
+
+    this.hitFreezeTimeout = setTimeout(() => {
+      this.isHitFreezeActive = false;
+      this.hitFreezeTimeout = null;
+      this.updateGlobalTimeScale();
+    }, slowmoDurationMs);
+  }
+
+  cleanupHitFreeze() {
+    if (this.hitFreezeTimeout) {
+      clearTimeout(this.hitFreezeTimeout);
+      this.hitFreezeTimeout = null;
+    }
+    this.isHitFreezeActive = false;
+    this.updateGlobalTimeScale();
+  }
+
   setPausedState(paused) {
     this.isPaused = paused;
     if (this.physics && this.physics.world) {
       this.physics.world.isPaused = paused;
     }
-    if (this.time) {
-      this.time.timeScale = paused ? 0 : 1;
-    }
-    if (this.anims) {
-      this.anims.globalTimeScale = paused ? 0 : 1;
-    }
+    this.updateGlobalTimeScale();
 
     if (paused) {
       this.showPauseIndicator();
