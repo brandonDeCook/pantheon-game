@@ -473,6 +473,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
     this.scene.sound.play("playerHit");
     this.scene?.triggerHitFreeze?.();
+    this.addSpecialCharge(10);
     this.playerHealth.current = Math.max(0, this.playerHealth.current - 1);
 
     for (
@@ -948,7 +949,12 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   addSpecialCharge(percent) {
-    const increment = Math.random() < 0.65 ? 5 : 10;
+    const increment =
+      typeof percent === "number" && Number.isFinite(percent)
+        ? percent
+        : Math.random() < 0.65
+        ? 5
+        : 10;
     const wasFull = this.specialCharge >= 100;
     this.setSpecialCharge(this.specialCharge + increment);
     if (this.specialCharge >= 100 && !wasFull) {
